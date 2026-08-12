@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect } from "react"
 import { FolderOpen, Plus, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -9,6 +10,7 @@ import { cn } from "@/lib/utils"
 interface ProjectSidebarProps {
   isOpen: boolean
   onClose: () => void
+  toggleButtonRef?: React.RefObject<HTMLElement>
 }
 
 function EmptyProjects() {
@@ -20,7 +22,13 @@ function EmptyProjects() {
   )
 }
 
-export function ProjectSidebar({ isOpen, onClose }: ProjectSidebarProps) {
+export function ProjectSidebar({ isOpen, onClose, toggleButtonRef }: ProjectSidebarProps) {
+  useEffect(() => {
+    if (!isOpen && toggleButtonRef?.current) {
+      toggleButtonRef.current.focus()
+    }
+  }, [isOpen, toggleButtonRef])
+
   return (
     <aside
       aria-hidden={!isOpen}
@@ -29,6 +37,7 @@ export function ProjectSidebar({ isOpen, onClose }: ProjectSidebarProps) {
         "fixed top-[4.5rem] bottom-4 left-4 z-20 flex w-[min(22rem,calc(100vw-2rem))] flex-col rounded-2xl border border-surface-border bg-surface/95 p-3 shadow-2xl backdrop-blur transition-transform duration-200",
         isOpen ? "translate-x-0" : "-translate-x-[calc(100%+1.5rem)]"
       )}
+      inert={!isOpen ? "" : undefined}
     >
       <div className="flex items-center justify-between px-1 pb-3">
         <h2 className="text-base font-semibold text-copy-primary">Projects</h2>

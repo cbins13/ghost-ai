@@ -1,5 +1,6 @@
 "use client"
 
+import { forwardRef } from "react"
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -7,11 +8,13 @@ import { Button } from "@/components/ui/button"
 interface EditorNavbarProps {
   isSidebarOpen: boolean
   onSidebarToggle: () => void
+  sidebarToggleRef?: React.RefObject<HTMLButtonElement>
 }
 
 export function EditorNavbar({
   isSidebarOpen,
   onSidebarToggle,
+  sidebarToggleRef,
 }: EditorNavbarProps) {
   const SidebarIcon = isSidebarOpen ? PanelLeftClose : PanelLeftOpen
 
@@ -19,6 +22,7 @@ export function EditorNavbar({
     <header className="flex h-14 shrink-0 items-center border-b border-surface-border bg-surface px-3">
       <div className="flex flex-1 items-center">
         <Button
+          ref={sidebarToggleRef}
           aria-label={isSidebarOpen ? "Close projects sidebar" : "Open projects sidebar"}
           onClick={onSidebarToggle}
           size="icon"
