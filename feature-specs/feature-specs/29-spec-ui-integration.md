@@ -14,8 +14,8 @@ Integrate spec generation results into the editor so users can view, preview, an
 2. Preview modal
 
 - open a modal when a spec is selected
-- fetch the spec content through an existing endpoint (do not access Blob directly from the client)
-- render content as Markdown
+- fetch Markdown through the authenticated `GET /api/projects/[projectId]/specs/[specId]/download` route, which serves both preview and download and enforces project access; the client must never access Blob storage directly
+- render content with a vetted Markdown renderer with raw HTML disabled, sanitize rendered HTML and link URLs before insertion
 - include a close action and basic keyboard support
 
 3. Download action

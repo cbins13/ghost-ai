@@ -10,23 +10,28 @@ Create `prisma/models/project.prisma`.
 
 Add `Project`:
 
-- owner ID mapped to Clerk user
-- name
-- optional description
-- status enum: `DRAFT`, `ARCHIVED`
-- `canvasJsonPath` for future canvas blob storage
-- timestamps
-- indexes on owner ID and creation date
+- `id String @id @default(cuid())`
+- `ownerId String`, containing the external Clerk user ID; do not add a local user model or Prisma relation
+- `name String`
+- `description String?`
+- `status ProjectStatus @default(DRAFT)`, where `ProjectStatus` contains `DRAFT` and `ARCHIVED`
+- `canvasJsonPath String?` for future canvas blob storage
+- `createdAt DateTime @default(now())` and `updatedAt DateTime @updatedAt`
+- indexes on `ownerId` and `createdAt`
+
+Ownership validation is enforced in application code using the external Clerk user ID.
 
 Add `ProjectCollaborator`:
 
 - project relation with cascade delete
-- collaborator email
+- collaborator email, canonicalized with `trim().toLowerCase()` before storage and lookup
 - creation timestamp
-- unique constraint on project/email
+- unique constraint on project/canonical email
 - indexes on email and project/date
 
 Do not add extra fields unless required by Prisma.
+
+Apply the same email canonicalization in `project-access.ts` and every collaborator API lookup so case or surrounding whitespace cannot create distinct collaborator records.
 
 ## Prisma Client
 

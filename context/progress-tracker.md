@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Completed: Feature Unit 03
+- Completed: Feature Unit 04
 
 ## Current Goal
 
-- Prepare for the next feature after completing authentication.
+- Prepare for the next feature after completing project dialogs and editor home.
 
 ## Completed
 
@@ -40,13 +40,21 @@ Update this file whenever the current phase, active feature, or implementation s
 - Redirected the root route by auth state and moved the editor shell to `/editor`.
 - Verified Clerk diagnostics and lint; the production build remains blocked by an unrelated existing type error in `components/editor/project-sidebar.tsx`.
 
+### Feature Unit 04: Project Dialogs & Editor Home
+
+- Added the centered editor home action and project creation entry point.
+- Added mock owned and shared project data, with rename and delete actions restricted to owned projects.
+- Added create, rename, and destructive delete dialogs backed by a dedicated dialog state hook.
+- Added live project slug preview, rename autofocus and Enter submission, loading states, and a mobile sidebar scrim.
+- Verified lint and strict TypeScript checks.
+
 ## In Progress
 
 - None.
 
 ## Next Up
 
-- Continue the next feature after the authentication foundation.
+- Continue with the next editor feature unit.
 
 ## Open Questions
 
@@ -58,5 +66,6 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Session Notes
 
-- Active implementation unit: context/feature-specs/03-auth.md
-- Unit status: completed; Clerk diagnostics pass and lint has no errors.
+- Last completed implementation unit: context/feature-specs/04-project-dialogs.md
+- Unit status: completed; lint and strict TypeScript checks pass.
+- Post-completion follow-up: project row selection now routes using the immutable project ID.

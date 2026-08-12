@@ -12,6 +12,8 @@ Implement the full AI design agent so a user prompt results in real-time updates
 
    Then implement:
    - use Gemini (`@ai-sdk/google`) to interpret the user prompt
+  - define typed schemas for every planned action, including node IDs, shape, color, flow coordinates, dimensions, update data, and edge endpoints
+  - validate the complete Gemini plan against the existing canvas schema before any collaborative mutation utility runs; reject invalid or partial plans without mutating the room
    - update the canvas using the existing collaborative flow utilities
    - support actions like:
      - add node
@@ -22,7 +24,10 @@ Implement the full AI design agent so a user prompt results in real-time updates
      - add edge
      - delete edge
 
-   - publish AI activity to the shared status feed so all users see progress
+  - give every canvas action a stable `runId` and action ID; key durable effect records by unique `(runId, actionId, effectType)` and track `pending` and `applied` states
+  - atomically record `pending` before each node, edge, status-feed, or presence effect and mark it `applied` with the side effect; on retry, reconcile pending or ambiguous records against the actual Liveblocks node, edge, feed, or presence state
+  - skip an effect only when it is confirmed `applied`; safely recheck or replay unresolved pending effects
+  - publish AI activity to the shared status feed so all users see progress
    - update AI presence (cursor + thinking state) while the task runs
    - push clear status messages at key steps (start, processing, complete)
 
@@ -31,12 +36,12 @@ Implement the full AI design agent so a user prompt results in real-time updates
      - color palette
      - layout and spacing rules
 
-   - handle errors gracefully and update status if something fails
-   - clear AI presence when the task finishes
+  - handle errors gracefully, publish a failure status when an error occurs, and preserve completion status for successful tasks
+  - unconditionally clear AI presence in a `finally` path, including after Gemini or collaborative mutation failures
 
 ## Dependencies
 
-All packages are already installed.`GOOGLE_AI_API_KEY` is already in `.env.local`.
+All packages are already installed. Provision `GOOGLE_AI_API_KEY` in every deployed Trigger.dev environment and retain it in `.env.local` for local execution. Access the key only from server-side code.
 
 ## Scope Limits
 

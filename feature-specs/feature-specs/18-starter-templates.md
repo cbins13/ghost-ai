@@ -36,9 +36,13 @@ Add a small starter template library so users can start a canvas from a pre-buil
 
 4. Wire starter templates into the editor.
    - add a navbar button to open the starter templates modal
-   - when a template is selected, clear all existing nodes and edges first in the canvas
-   - add the selected template nodes and edges after the canvas is cleared
+   - when a template is selected, clear and replace all existing nodes and edges within one Liveblocks `useMutation` callback, producing a single undoable history entry
+   - prevent intermediate or interleaved collaborative updates while the replacement mutation runs
    - make sure the starter template replaces the current canvas instead of being added on top of existing work
+   - require confirmation before replacing a non-empty canvas unless the single undo entry fully restores the previous nodes and edges
+   - capture the authoritative room revision and node/edge snapshot before confirmation; conditionally apply the replacement only if that revision is unchanged
+   - on a revision conflict, do not overwrite collaborator changes: refresh the authoritative canvas, show a conflict state, and require the user to review and explicitly retry the import
+   - a local undo must restore the complete pre-import node and edge collections without removing unrelated collaborator edits that occurred after the replacement
    - fit the view after the template is loaded
    - keep this inside the existing collaborative canvas state
 
@@ -55,5 +59,7 @@ Add a small starter template library so users can start a canvas from a pre-buil
 - Template data is defined using shared canvas types.
 - Import modal renders template cards with previews.
 - Import action replaces the current canvas through the existing node and edge state flow.
+- Concurrent collaborator edits are detected and never silently overwritten; conflict retry is explicit.
+- A single local undo restores the complete pre-import collections while preserving unrelated collaborator edits.
 - Editor navbar includes the import entry point.
 - `npm run build` passes.

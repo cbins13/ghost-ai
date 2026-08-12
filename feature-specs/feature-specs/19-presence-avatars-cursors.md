@@ -40,11 +40,13 @@ without changing the editor home navbar.
      current user
    - use the existing Liveblocks presence state to broadcast
      cursor position
-   - update cursor position on React Flow's onMouseMove event
-   - clear cursor to null on mouse leave
-   - show a small colored pointer with a name badge attached
-   - match the pointer and badge color to the participant's
+    - update cursor position on React Flow's onMouseMove event by converting the pointer with `screenToFlowPosition`
+    - clear cursor to null on mouse leave
+    - show a small colored pointer with a name badge attached
+    - match the pointer and badge color to the participant's
      presence color
+
+   Presence cursor coordinates are flow-space `{ x, y }` values. Convert incoming flow coordinates back to screen coordinates with the React Flow instance before rendering remote cursors; do not mix viewport and flow coordinates.
 
 5. Define the shared presence type in `liveblocks.config.ts`.
 

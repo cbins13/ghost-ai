@@ -1,15 +1,22 @@
 "use client"
 
 import { useEffect } from "react"
-import { FolderOpen, Plus, X } from "lucide-react"
+import { FolderOpen, Pencil, Plus, Trash2, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { type MockProject } from "@/components/editor/use-project-dialogs"
 import { cn } from "@/lib/utils"
 
 interface ProjectSidebarProps {
   isOpen: boolean
   onClose: () => void
+  onCreateProject: () => void
+  onDeleteProject: (project: MockProject) => void
+  onOpenProject: (projectId: string) => void
+  onRenameProject: (project: MockProject) => void
+  ownedProjects: MockProject[]
+  sharedProjects: MockProject[]
   toggleButtonRef?: React.RefObject<HTMLElement | null>
 }
 
@@ -22,7 +29,69 @@ function EmptyProjects() {
   )
 }
 
-export function ProjectSidebar({ isOpen, onClose, toggleButtonRef }: ProjectSidebarProps) {
+interface ProjectListProps {
+  onDeleteProject?: (project: MockProject) => void
+  onOpenProject: (projectId: string) => void
+  onRenameProject?: (project: MockProject) => void
+  projects: MockProject[]
+}
+
+function ProjectList({ onDeleteProject, onOpenProject, onRenameProject, projects }: Readonly<ProjectListProps>) {
+  if (!projects.length) {
+    return <EmptyProjects />
+  }
+
+  return (
+    <div className="mt-3 grid gap-1">
+      {projects.map((project) => (
+        <div className="flex min-w-0 items-center gap-2 rounded-xl px-2 py-2 hover:bg-surface-subtle" key={project.id}>
+          <button
+            className="flex min-w-0 flex-1 items-center gap-2 text-left"
+            onClick={() => onOpenProject(project.id)}
+            type="button"
+          >
+            <FolderOpen className="h-4 w-4 shrink-0 text-copy-muted" />
+            <span className="min-w-0 flex-1 truncate text-sm text-copy-primary">{project.name}</span>
+          </button>
+          {onRenameProject && onDeleteProject ? (
+            <div className="flex shrink-0 items-center gap-1">
+              <Button
+                aria-label={`Rename ${project.name}`}
+                onClick={() => onRenameProject(project)}
+                size="icon-xs"
+                title="Rename project"
+                variant="ghost"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                aria-label={`Delete ${project.name}`}
+                onClick={() => onDeleteProject(project)}
+                size="icon-xs"
+                title="Delete project"
+                variant="ghost"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export function ProjectSidebar({
+  isOpen,
+  onClose,
+  onCreateProject,
+  onDeleteProject,
+  onOpenProject,
+  onRenameProject,
+  ownedProjects,
+  sharedProjects,
+  toggleButtonRef,
+}: Readonly<ProjectSidebarProps>) {
   useEffect(() => {
     if (!isOpen && toggleButtonRef?.current) {
       toggleButtonRef.current.focus()
@@ -30,6 +99,15 @@ export function ProjectSidebar({ isOpen, onClose, toggleButtonRef }: ProjectSide
   }, [isOpen, toggleButtonRef])
 
   return (
+    <>
+      {isOpen ? (
+        <button
+          aria-label="Close projects sidebar"
+          className="fixed inset-0 z-10 bg-base/70 md:hidden"
+          onClick={onClose}
+          type="button"
+        />
+      ) : null}
     <aside
       aria-hidden={!isOpen}
       aria-label="Projects"
@@ -52,17 +130,23 @@ export function ProjectSidebar({ isOpen, onClose, toggleButtonRef }: ProjectSide
           <TabsTrigger value="shared">Shared</TabsTrigger>
         </TabsList>
         <TabsContent className="flex h-full flex-col" value="my-projects">
-          <EmptyProjects />
+          <ProjectList
+            onDeleteProject={onDeleteProject}
+            onOpenProject={onOpenProject}
+            onRenameProject={onRenameProject}
+            projects={ownedProjects}
+          />
         </TabsContent>
         <TabsContent className="flex h-full flex-col" value="shared">
-          <EmptyProjects />
+          <ProjectList onOpenProject={onOpenProject} projects={sharedProjects} />
         </TabsContent>
       </Tabs>
 
-      <Button className="mt-3 w-full" size="lg">
+      <Button className="mt-3 w-full" onClick={onCreateProject} size="lg">
         <Plus className="h-5 w-5" />
         New Project
       </Button>
     </aside>
+    </>
   )
 }

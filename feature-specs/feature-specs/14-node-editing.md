@@ -14,7 +14,7 @@ Add resizing and inline label editing to canvas nodes.
    - keep editing smooth without causing layout shifts
    - show a textarea directly over the label while editing
    - update the label as users type
-   - close editing on blur or `Escape`
+   - commit the current text on blur or `Escape`, matching edge-label editing behavior
    - prevent text editing interactions from dragging or panning the canvas
 
 3. Keep all node updates connected to the existing collaborative canvas state.
@@ -32,6 +32,6 @@ Add resizing and inline label editing to canvas nodes.
 - Resizing updates node dimensions through the existing node state flow.
 - Double-clicking a node opens inline label editing.
 - Label editing updates node labels through the existing sync flow.
-- Editing closes on blur or Escape.
+- Editing commits and closes on blur or Escape.
 - Text interactions do not trigger canvas drag or pan.
 - `npm run build` passes without type errors.
