@@ -24,7 +24,10 @@ Replace the canvas placeholder with a Liveblocks-backed React Flow canvas.
    Node data should support:
    - label
    - color
+   - textColor
    - shape
+
+   The synchronized `canvasNode` contract must retain resized `width` and `height` dimensions so node resizing persists across clients and reconnects. The shared `canvasEdge` contract must include an optional `label` field; absent labels preserve unlabeled-edge behavior.
 
    Also define the custom node and edge types:
    - `canvasNode`

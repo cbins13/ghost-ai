@@ -26,8 +26,10 @@ This is only for chat messages. Keep it separate from `ai-status-feed`, which ha
 
 4. Add message validation.
    - define or reuse a Zod schema in `types/tasks.ts`
-   - message shape should include sender, role, content, and timestamp
+   - message shape should include sender, role, content, and timestamp, but ignore all client-supplied sender, role, and timestamp values
    - validate feed messages before rendering them
+
+   Derive sender from the authenticated room session and use Liveblocks ordering with server-generated `createdAt`. Only an authorized backend or task path may publish assistant messages, so room members cannot forge AI output.
 
 ## Scope Limits
 

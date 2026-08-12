@@ -32,8 +32,7 @@ to follow, easier to click, and support inline labels.
    - when an active edge has no label, show a faint hint
    - prevent label clicks and typing from dragging or panning
      the canvas
-   - update labels through the existing collaborative edge
-     data flow
+   - update labels through the existing collaborative edge data flow using a mutation payload of `{ edgeId, label?: string }`; the shared `canvasEdge` contract persists this optional `label` field across reconnects
 
 ## Scope Limits
 

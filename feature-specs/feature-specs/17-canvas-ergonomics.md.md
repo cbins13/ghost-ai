@@ -31,11 +31,12 @@ Add a floating control bar for zoom and undo/redo, then wire the same actions to
    - ignore shortcuts while typing in inputs, textareas, or editable text fields
 
 5. Support these shortcuts:
-   - `+` or `=` to zoom in
-   - `-` to zoom out
-   - `Cmd/Ctrl + Z` to undo
-   - `Cmd/Ctrl + Shift + Z` to redo
-   - `Cmd/Ctrl + Y` to redo
+   - zoom in only when `event.key` is `=` with no modifiers, or `event.key` is `+` with only `Shift` present; `Ctrl`, `Meta`, and `Alt` must be absent
+   - zoom out only when `event.key` is `-` and no `Ctrl`, `Meta`, `Alt`, or `Shift` modifier is present
+   - undo only when `event.key` is `z`, exactly one of `Ctrl` or `Meta` is present, and `Shift` and `Alt` are absent
+   - redo only when `event.key` is `z`, exactly one of `Ctrl` or `Meta` is present, `Shift` is present, and `Alt` is absent; or when `event.key` is `y`, exactly one of `Ctrl` or `Meta` is present, and `Shift` and `Alt` are absent
+
+   Reject all unrelated extra modifiers, including Ctrl/Cmd with `=` or `-`. Call `preventDefault()` for every matched shortcut, including undo and redo, after the existing editable-field exclusion.
 
 ## Scope Limits
 

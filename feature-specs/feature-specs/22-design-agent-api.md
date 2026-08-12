@@ -7,7 +7,8 @@ This unit handles triggering background jobs, tracking runs, and issuing tokens.
 
    Create: `POST /api/ai/design`
    This route should:
-   - accept the design prompt and required context (`roomId`, `projectId`)
+   - accept the design prompt, `roomId`, and client context `projectId`, but do not trust the supplied project ID
+   - require authentication, derive the authoritative project from `roomId`, and reject a supplied `projectId` that does not match before authorizing access
    - trigger the design task through Trigger.dev
    - create a TaskRun record
    - return the run ID to the client
@@ -31,9 +32,9 @@ This unit handles triggering background jobs, tracking runs, and issuing tokens.
    Create: `POST /api/ai/design/token`
    This route should:
    - accept a run ID
-   - verify ownership using the TaskRun record
-   - generate a Trigger.dev public token scoped to that run
-   - return the token to the client
+   - require authentication, load the TaskRun, and re-authorize the requester’s current owner-or-collaborator access to `TaskRun.projectId`; do not rely only on `TaskRun.userId`
+   - use Trigger.dev’s public-token API to issue a run-specific read-scoped token only after authorization succeeds
+   - set an explicit one-hour token expiration and return the token
 
 4. Create the design task.
 
@@ -42,7 +43,7 @@ This unit handles triggering background jobs, tracking runs, and issuing tokens.
    - reuse the existing setup instead of creating a new pattern
    - export a minimal design task
    - accept the expected payload (`prompt`, `roomId`)
-   - log or echo the input for now
+   - do not log raw prompts; log only safe request metadata
    - don’t add AI logic yet
 
 ## Scope Limits
@@ -51,6 +52,11 @@ This unit handles triggering background jobs, tracking runs, and issuing tokens.
 - don’t call any AI providers
 - don’t update the canvas
 - keep this focused on backend task wiring only
+- enforce authenticated access and room-derived project ownership in all design and token route flows
+
+## Dependencies
+
+- Add `@trigger.dev/sdk` to `package.json` for task triggering and run-scoped public-token issuance.
 
 ## Check When Done
 

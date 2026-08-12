@@ -11,6 +11,7 @@ It should:
 - accept `roomId`, `chatHistory`, `nodes`, and `edges`
 - authenticate the current user
 - resolve project access from `roomId`
+- derive and pass a server-verified ownership binding with the request data; validate that `projectId` and `roomId` belong to the same authorized project before generation, including direct and retried task execution
 - trigger the `generate-spec` task
 - save a `TaskRun` record for ownership/access control
 - return the Trigger.dev `runId`
@@ -59,6 +60,7 @@ Follow the existing Trigger.dev task patterns in the codebase for retries, loggi
 - Use Zod for request/task input validation
 - Use Prisma for `TaskRun` persistence
 - Project access must come from the authenticated user + `roomId`
+- Zod shape validation does not establish ownership and must not allow processing unrelated projects
 - Keep the task output as plain Markdown
 - Reuse existing auth, Prisma, Trigger.dev, and Gemini patterns
 

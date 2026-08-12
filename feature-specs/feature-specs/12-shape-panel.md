@@ -21,6 +21,8 @@ Add a bottom shape panel so users can drag shapes onto the canvas and create new
 
 4. Add `dragover` and `drop` handling to the canvas wrapper.
 
+   The drop handler must parse only the expected JSON drag payload, accept exactly `rectangle`, `diamond`, `circle`, `pill`, `cylinder`, or `hexagon`, and reject malformed or untrusted `DataTransfer` content before calling node creation or a collaborative mutation. Validate numeric width and height as finite values and clamp them to documented safe minimum and maximum dimensions.
+
 5. On drop:
    - read the dragged shape payload
    - convert the screen position to canvas coordinates using React Flow
@@ -29,7 +31,7 @@ Add a bottom shape panel so users can drag shapes onto the canvas and create new
    - use the default node color
    - use the dragged shape value
 
-6. Generate each node ID using the shape name, timestamp, and a counter.
+6. Generate each node ID with `crypto.randomUUID()` for global collision resistance. Preserve the shape name separately in node data.
 
 7. Add a basic renderer for the custom canvas node type so new nodes are visible.
 

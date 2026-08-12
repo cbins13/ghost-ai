@@ -34,13 +34,15 @@ This route must:
 
 1. require Clerk authentication
 2. verify project access using the existing access helper
-3. ensure the Liveblocks room exists (create only if needed)
+3. ensure the Liveblocks room exists with `getOrCreateRoom`, or `createRoom` using `idempotent: true`, so concurrent requests converge on one room
 4. return a session token with:
    - user name
    - avatar
    - generated cursor color
 
 Return `403` for unauthorized project access.
+
+Bound Liveblocks creation retries (for example, three attempts with backoff) and return a handled `500` error if room provisioning still fails. Do not issue a session token after a Liveblocks failure.
 
 ## Dependencies
 
