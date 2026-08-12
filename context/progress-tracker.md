@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Completed: Feature Unit 04
+- Completed: Feature Unit 05
 
 ## Current Goal
 
-- Prepare for the next feature after completing project dialogs and editor home.
+- Prepare for the next feature after completing the Prisma schema and data layer.
 
 ## Completed
 
@@ -48,6 +48,14 @@ Update this file whenever the current phase, active feature, or implementation s
 - Added live project slug preview, rename autofocus and Enter submission, loading states, and a mobile sidebar scrim.
 - Verified lint and strict TypeScript checks.
 
+### Feature Unit 05: Prisma Schema And Data Layer
+
+- Added `prisma/models/project.prisma` with `Project` (owner ID as external Clerk ID, status enum, canvas path, indexes on `ownerId`/`createdAt`) and `ProjectCollaborator` (cascade delete, unique `[projectId, email]`, indexes on `email` and `[projectId, createdAt]`).
+- Installed `@prisma/client`, `@prisma/adapter-pg`, and `pg`, which were listed as installed in the spec but were missing from `package.json`.
+- Added `lib/prisma.ts` as a cached singleton, branching on `DATABASE_URL`: `prisma+postgres://` uses Prisma's built-in `accelerateUrl` option, otherwise a `@prisma/adapter-pg` driver adapter is used. Cached on `global` in development.
+- Ran `prisma migrate dev` (migration `20260812085617_init_project_models`) against the configured database and generated the client.
+- Verified `npm run build` passes.
+
 ## In Progress
 
 - None.
@@ -55,6 +63,7 @@ Update this file whenever the current phase, active feature, or implementation s
 ## Next Up
 
 - Continue with the next editor feature unit.
+- When collaborator-facing API routes and `lib/project-access.ts` are built, canonicalize collaborator emails with `trim().toLowerCase()` before every write and lookup against `ProjectCollaborator.email` — neither exists yet, so this wasn't implemented in Unit 05.
 
 ## Open Questions
 
@@ -62,10 +71,10 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Architecture Decisions
 
-- Add decisions that affect the system design or data model.
+- `ProjectCollaborator.email` stores the canonicalized (trimmed, lowercased) address directly rather than a separate raw/canonical field pair, per the spec's "do not add extra fields" constraint.
 
 ## Session Notes
 
-- Last completed implementation unit: context/feature-specs/04-project-dialogs.md
-- Unit status: completed; lint and strict TypeScript checks pass.
+- Last completed implementation unit: context/feature-specs/05-prisma..md
+- Unit status: completed; migration applied, client generated, `npm run build` passes.
 - Post-completion follow-up: project row selection now routes using the immutable project ID.
