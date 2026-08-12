@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Completed: Feature Unit 01
+- Completed: Feature Unit 02
 
 ## Current Goal
 
-- Prepare for the next feature unit after completing design system foundations.
+- Prepare for the next editor feature after completing the reusable chrome.
 
 ## Completed
 
@@ -23,13 +23,21 @@ Update this file whenever the current phase, active feature, or implementation s
 - Replaced generated default theme tokens with dark-only global tokens aligned to UI context.
 - Verified component imports and build health via npm run lint.
 
+### Feature Unit 02: Editor Chrome
+
+- Added a reusable editor navbar with a state-aware project sidebar toggle.
+- Added a floating, animated project sidebar with My Projects and Shared tabs.
+- Added empty project states and a full-width New Project action.
+- Confirmed existing dialog primitives support token-based titles, descriptions, and footer actions.
+- Verified editor chrome lint health via npm run lint.
+
 ## In Progress
 
 - None.
 
 ## Next Up
 
-- Begin implementing authenticated project shell and core layout scaffolding.
+- Continue the next editor feature after the reusable chrome foundation.
 
 ## Open Questions
 
@@ -41,5 +49,5 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Session Notes
 
-- Active implementation unit: context/feature-specs/01-design-system.md
-- Unit status: completed and validated.
+- Active implementation unit: context/feature-specs/02-editor.md
+- Unit status: completed and lint-validated.
