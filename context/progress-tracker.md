@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Completed: Feature Unit 02
+- Completed: Feature Unit 03
 
 ## Current Goal
 
-- Prepare for the next editor feature after completing the reusable chrome.
+- Prepare for the next feature after completing authentication.
 
 ## Completed
 
@@ -31,13 +31,22 @@ Update this file whenever the current phase, active feature, or implementation s
 - Confirmed existing dialog primitives support token-based titles, descriptions, and footer actions.
 - Verified editor chrome lint health via npm run lint.
 
+### Feature Unit 03: Authentication
+
+- Initialized Clerk for the linked Ghost AI development instance.
+- Configured Clerk provider theming with the shadcn theme and existing dark tokens.
+- Added protected-by-default proxy behavior, public sign-in/sign-up routes, and Clerk proxy matching.
+- Added responsive sign-in and sign-up pages plus the editor user menu.
+- Redirected the root route by auth state and moved the editor shell to `/editor`.
+- Verified Clerk diagnostics and lint; the production build remains blocked by an unrelated existing type error in `components/editor/project-sidebar.tsx`.
+
 ## In Progress
 
 - None.
 
 ## Next Up
 
-- Continue the next editor feature after the reusable chrome foundation.
+- Continue the next feature after the authentication foundation.
 
 ## Open Questions
 
@@ -49,5 +58,5 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Session Notes
 
-- Active implementation unit: context/feature-specs/02-editor.md
-- Unit status: completed and lint-validated.
+- Active implementation unit: context/feature-specs/03-auth.md
+- Unit status: completed; Clerk diagnostics pass and lint has no errors.
