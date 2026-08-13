@@ -1,8 +1,8 @@
 "use client"
 
 import { useRef, useState } from "react"
-import { Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { Plus } from "lucide-react"
 
 import { EditorNavbar } from "@/components/editor/editor-navbar"
 import { ProjectDialogs } from "@/components/editor/project-dialogs"
@@ -23,7 +23,6 @@ export function EditorHome({ ownedProjects, sharedProjects }: Readonly<EditorHom
 
   function openProject(projectId: string) {
     router.push(`/editor/${projectId}`)
-    setIsSidebarOpen(false)
   }
 
   return (

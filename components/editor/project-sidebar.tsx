@@ -9,6 +9,7 @@ import { type ProjectSummary } from "@/hooks/use-project-actions"
 import { cn } from "@/lib/utils"
 
 interface ProjectSidebarProps {
+  activeProjectId?: string
   isOpen: boolean
   onClose: () => void
   onCreateProject: () => void
@@ -30,22 +31,39 @@ function EmptyProjects() {
 }
 
 interface ProjectListProps {
+  activeProjectId?: string
   onDeleteProject?: (project: ProjectSummary) => void
   onOpenProject: (projectId: string) => void
   onRenameProject?: (project: ProjectSummary) => void
   projects: ProjectSummary[]
 }
 
-function ProjectList({ onDeleteProject, onOpenProject, onRenameProject, projects }: Readonly<ProjectListProps>) {
+function ProjectList({
+  activeProjectId,
+  onDeleteProject,
+  onOpenProject,
+  onRenameProject,
+  projects,
+}: Readonly<ProjectListProps>) {
   if (!projects.length) {
     return <EmptyProjects />
   }
 
   return (
     <div className="mt-3 grid gap-1">
-      {projects.map((project) => (
-        <div className="flex min-w-0 items-center gap-2 rounded-xl px-2 py-2 hover:bg-surface-subtle" key={project.id}>
+      {projects.map((project) => {
+        const isActive = project.id === activeProjectId
+
+        return (
+        <div
+          className={cn(
+            "flex min-w-0 items-center gap-2 rounded-xl px-2 py-2 hover:bg-surface-subtle",
+            isActive && "bg-accent-dim"
+          )}
+          key={project.id}
+        >
           <button
+            aria-current={isActive ? "true" : undefined}
             className="flex min-w-0 flex-1 items-center gap-2 text-left"
             onClick={() => onOpenProject(project.id)}
             type="button"
@@ -76,12 +94,14 @@ function ProjectList({ onDeleteProject, onOpenProject, onRenameProject, projects
             </div>
           ) : null}
         </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
 
 export function ProjectSidebar({
+  activeProjectId,
   isOpen,
   onClose,
   onCreateProject,
@@ -131,6 +151,7 @@ export function ProjectSidebar({
         </TabsList>
         <TabsContent className="flex h-full flex-col" value="my-projects">
           <ProjectList
+            activeProjectId={activeProjectId}
             onDeleteProject={onDeleteProject}
             onOpenProject={onOpenProject}
             onRenameProject={onRenameProject}
@@ -138,7 +159,7 @@ export function ProjectSidebar({
           />
         </TabsContent>
         <TabsContent className="flex h-full flex-col" value="shared">
-          <ProjectList onOpenProject={onOpenProject} projects={sharedProjects} />
+          <ProjectList activeProjectId={activeProjectId} onOpenProject={onOpenProject} projects={sharedProjects} />
         </TabsContent>
       </Tabs>
 

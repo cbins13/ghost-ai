@@ -30,3 +30,17 @@ model ProjectCollaborator {
   @@index([email])
   @@index([projectId, createdAt])
 }
+
+model ProjectMutation {
+  id             String   @id @default(cuid())
+  userId         String
+  idempotencyKey String
+  operation      String
+  projectId      String?
+  requestFingerprint String @default("")
+  responseStatus Int
+  responseBody   Json?
+  createdAt      DateTime @default(now())
+
+  @@unique([userId, idempotencyKey])
+}
