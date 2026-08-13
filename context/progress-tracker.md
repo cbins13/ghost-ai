@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Completed: Feature Unit 05
+- Completed: Feature Unit 07
 
 ## Current Goal
 
-- Prepare for the next feature after completing the Prisma schema and data layer.
+- Prepare for the next feature after wiring the editor home to the real project API.
 
 ## Completed
 
@@ -56,14 +56,32 @@ Update this file whenever the current phase, active feature, or implementation s
 - Ran `prisma migrate dev` (migration `20260812085617_init_project_models`) against the configured database and generated the client.
 - Verified `npm run build` passes.
 
+### Feature Unit 06: Project APIs
+
+- Added `app/api/projects/route.ts` with `GET` (returns `{ owned, shared }`, `shared` resolved via `ProjectCollaborator.email` matched against the caller's Clerk primary email) and `POST` (trims name, defaults empty/whitespace-only to `Untitled Project`, rejects names over 120 characters).
+- Added `app/api/projects/[projectId]/route.ts` with `PATCH` (rename, no creation default, rejects empty or over-length names) and `DELETE`, both enforcing owner-only access (`403` for non-owners, `404` for missing projects).
+- Added `lib/api-response.ts` for the shared `{ error: { code, message } }` JSON error shape (401/400/403/404/409/500).
+- Added `lib/projects.ts` with `toProjectDto`, `resolveCreateName`, and `resolveRenameName` shared between routes.
+- Verified `npm run build` passes.
+
+### Feature Unit 07: Wire Editor Home
+
+- Added `lib/projects.ts#getUserProjects(userId, email)`, shared between `GET /api/projects` and the editor home server component so both use the same owned/shared query logic.
+- Converted `app/editor/page.tsx` into a server component: it resolves the Clerk user, fetches owned/shared projects server-side via `getUserProjects`, and redirects unauthenticated visitors to `/sign-in`. No client-side fetch on initial load.
+- Added `components/editor/editor-home.tsx` as the client component holding sidebar-open state and dialog wiring, rendering the server-fetched project lists directly (no duplicated client-side project state).
+- Added `hooks/use-project-actions.ts`, replacing the mock `components/editor/use-project-dialogs.ts` (deleted). Manages dialog state and calls the real API: `POST /api/projects` then `router.push` to `/editor/[id]` using the server-generated ID; `PATCH` then `router.refresh()`; `DELETE` then `router.push("/editor")` if the deleted project is the active workspace (via an optional `activeProjectId` option, unused for now since no project workspace route exists yet) or `router.refresh()` otherwise. Surfaces request failures as an inline dialog error.
+- Updated `components/editor/project-sidebar.tsx` and `components/editor/project-dialogs.tsx` to use the hook's `ProjectSummary` type instead of the removed `MockProject` type; `ProjectDialogs` now accepts and displays an `error` string.
+- Verified `npm run build` and `npm run lint` pass.
+
 ## In Progress
 
 - None.
 
 ## Next Up
 
+- Build the `/editor/[projectId]` workspace route/canvas; `useProjectActions`'s `activeProjectId` option is ready for it to enable delete-redirect-when-active behavior.
 - Continue with the next editor feature unit.
-- When collaborator-facing API routes and `lib/project-access.ts` are built, canonicalize collaborator emails with `trim().toLowerCase()` before every write and lookup against `ProjectCollaborator.email` — neither exists yet, so this wasn't implemented in Unit 05.
+- When collaborator-facing API routes and `lib/project-access.ts` are built, canonicalize collaborator emails with `trim().toLowerCase()` before every write and lookup against `ProjectCollaborator.email` — Unit 06's `GET /api/projects` reads via this field but no write path exists yet.
 
 ## Open Questions
 
@@ -75,6 +93,5 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Session Notes
 
-- Last completed implementation unit: context/feature-specs/05-prisma..md
-- Unit status: completed; migration applied, client generated, `npm run build` passes.
-- Post-completion follow-up: project row selection now routes using the immutable project ID.
+- Last completed implementation unit: context/feature-specs/07-wire-editor-home.md
+- Unit status: completed; editor home fetches real data server-side, create/rename/delete call the real API, `npm run build` and `npm run lint` pass.
