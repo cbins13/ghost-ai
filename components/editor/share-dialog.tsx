@@ -39,19 +39,19 @@ export function ShareDialog({ isOpen, isOwner, onOpenChange, projectId, projectN
   const copyResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
+    if (!isOpen) {
+      setCopyError(null)
+      setEmail("")
+    }
+  }, [isOpen])
+
+  useEffect(() => {
     return () => {
       if (copyResetTimeoutRef.current) {
         clearTimeout(copyResetTimeoutRef.current)
       }
     }
   }, [])
-
-  useEffect(() => {
-    if (!isOpen) {
-      setCopyError(null)
-      setEmail("")
-    }
-  }, [isOpen])
 
   async function handleInvite(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -116,6 +116,7 @@ export function ShareDialog({ isOpen, isOwner, onOpenChange, projectId, projectN
             {error}
           </p>
         ) : null}
+
         {copyError ? (
           <p className="text-sm text-destructive" role="alert">
             {copyError}

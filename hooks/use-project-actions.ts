@@ -148,11 +148,11 @@ export function useProjectActions({ activeProjectId }: UseProjectActionsOptions 
     setIsLoading(true)
     setError(null)
     const request = { controller: new AbortController(), timedOut: false }
-    const idempotencyKey =
-      mutationKeyRef.current ??
-      (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    const idempotencyKey = mutationKeyRef.current ?? (
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
         ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`)
+        : `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`
+    )
     mutationKeyRef.current = idempotencyKey
     activeRequestRef.current = request
     const timeoutId = setTimeout(() => {
