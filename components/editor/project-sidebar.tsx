@@ -5,18 +5,18 @@ import { FolderOpen, Pencil, Plus, Trash2, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { type MockProject } from "@/components/editor/use-project-dialogs"
+import { type ProjectSummary } from "@/hooks/use-project-actions"
 import { cn } from "@/lib/utils"
 
 interface ProjectSidebarProps {
   isOpen: boolean
   onClose: () => void
   onCreateProject: () => void
-  onDeleteProject: (project: MockProject) => void
+  onDeleteProject: (project: ProjectSummary) => void
   onOpenProject: (projectId: string) => void
-  onRenameProject: (project: MockProject) => void
-  ownedProjects: MockProject[]
-  sharedProjects: MockProject[]
+  onRenameProject: (project: ProjectSummary) => void
+  ownedProjects: ProjectSummary[]
+  sharedProjects: ProjectSummary[]
   toggleButtonRef?: React.RefObject<HTMLElement | null>
 }
 
@@ -30,10 +30,10 @@ function EmptyProjects() {
 }
 
 interface ProjectListProps {
-  onDeleteProject?: (project: MockProject) => void
+  onDeleteProject?: (project: ProjectSummary) => void
   onOpenProject: (projectId: string) => void
-  onRenameProject?: (project: MockProject) => void
-  projects: MockProject[]
+  onRenameProject?: (project: ProjectSummary) => void
+  projects: ProjectSummary[]
 }
 
 function ProjectList({ onDeleteProject, onOpenProject, onRenameProject, projects }: Readonly<ProjectListProps>) {

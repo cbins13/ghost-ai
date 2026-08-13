@@ -12,10 +12,11 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { type MockProject } from "@/components/editor/use-project-dialogs"
+import { type ProjectSummary } from "@/hooks/use-project-actions"
 
 interface ProjectDialogsProps {
-  activeDialog: { type: "create" | "rename" | "delete"; project?: MockProject } | null
+  activeDialog: { type: "create" | "rename" | "delete"; project?: ProjectSummary } | null
+  error?: string | null
   isLoading: boolean
   onClose: () => void
   onProjectNameChange: (projectName: string) => void
@@ -63,6 +64,7 @@ function getSubmitLabel(type: "create" | "rename" | "delete", isLoading: boolean
 
 export function ProjectDialogs({
   activeDialog,
+  error,
   isLoading,
   onClose,
   onProjectNameChange,
@@ -112,6 +114,8 @@ export function ProjectDialogs({
               )}
             </div>
           ) : null}
+
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
           <DialogFooter className="-mx-6 -mb-6 rounded-b-3xl bg-surface-elevated">
             <Button disabled={isLoading} onClick={onClose} type="button" variant="ghost">
