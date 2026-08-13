@@ -1,6 +1,6 @@
 "use client"
 
-import { Component, useCallback, type DragEvent, type ReactNode } from "react"
+import { Component, createContext, useCallback, useContext, type DragEvent, type ReactNode } from "react"
 import { ClientSideSuspense, LiveblocksProvider, RoomProvider } from "@liveblocks/react"
 import { useLiveblocksFlow } from "@liveblocks/react-flow"
 import {
@@ -23,6 +23,7 @@ import {
   MAX_NODE_DIMENSION,
   MIN_NODE_DIMENSION,
   NODE_SHAPES,
+  SHAPE_DEFAULT_SIZES,
   type CanvasEdge,
   type CanvasNode,
   type CanvasNodeShape,
@@ -78,6 +79,20 @@ function isCanvasNodeShape(value: unknown): value is CanvasNodeShape {
   return typeof value === "string" && (NODE_SHAPES as string[]).includes(value)
 }
 
+interface CanvasActionsContextValue {
+  createNodeAtCenter: (shape: CanvasNodeShape) => void
+}
+
+const CanvasActionsContext = createContext<CanvasActionsContextValue | null>(null)
+
+export function useCanvasActions() {
+  const context = useContext(CanvasActionsContext)
+  if (!context) {
+    throw new Error("useCanvasActions must be used within CanvasFlow")
+  }
+  return context
+}
+
 function clampDimension(value: unknown, fallback: number): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return fallback
@@ -116,6 +131,14 @@ function parseShapeDragPayload(raw: string): ShapeDragPayload | null {
 
   const { width, height } = size as Record<string, unknown>
 
+  if (typeof width !== "number" || !Number.isFinite(width)) {
+    return null
+  }
+
+  if (typeof height !== "number" || !Number.isFinite(height)) {
+    return null
+  }
+
   return {
     shape,
     size: {
@@ -134,7 +157,7 @@ function CanvasFlow() {
     edges: { initial: [] },
     suspense: true,
   })
-  const { screenToFlowPosition } = useReactFlow<CanvasNode>()
+  const { screenToFlowPosition, getViewport } = useReactFlow<CanvasNode>()
 
   const handleDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
     if (!event.dataTransfer.types.includes(SHAPE_DRAG_MIME_TYPE)) {
@@ -144,6 +167,38 @@ function CanvasFlow() {
     event.preventDefault()
     event.dataTransfer.dropEffect = "copy"
   }, [])
+
+  const createNodeAtCenter = useCallback(
+    (shape: CanvasNodeShape) => {
+      const viewport = getViewport()
+      const size = SHAPE_DEFAULT_SIZES[shape]
+
+      const centerPosition = screenToFlowPosition({
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
+      })
+
+      const newNode: CanvasNode = {
+        id: crypto.randomUUID(),
+        type: "canvasNode",
+        position: {
+          x: centerPosition.x - size.width / 2,
+          y: centerPosition.y - size.height / 2,
+        },
+        width: size.width,
+        height: size.height,
+        data: {
+          label: "",
+          color: DEFAULT_NODE_COLOR.fill,
+          textColor: DEFAULT_NODE_COLOR.text,
+          shape,
+        },
+      }
+
+      onNodesChange([{ type: "add", item: newNode }])
+    },
+    [getViewport, onNodesChange, screenToFlowPosition],
+  )
 
   const handleDrop = useCallback(
     (event: DragEvent<HTMLDivElement>) => {
@@ -161,12 +216,15 @@ function CanvasFlow() {
         return
       }
 
-      const position = screenToFlowPosition({ x: event.clientX, y: event.clientY })
+      const dropPosition = screenToFlowPosition({ x: event.clientX, y: event.clientY })
 
       const newNode: CanvasNode = {
         id: crypto.randomUUID(),
         type: "canvasNode",
-        position,
+        position: {
+          x: dropPosition.x - payload.size.width / 2,
+          y: dropPosition.y - payload.size.height / 2,
+        },
         width: payload.size.width,
         height: payload.size.height,
         data: {
@@ -182,24 +240,28 @@ function CanvasFlow() {
     [onNodesChange, screenToFlowPosition],
   )
 
+  const canvasActions = useCallback(() => ({ createNodeAtCenter }), [createNodeAtCenter])
+
   return (
-    <div className="relative flex flex-1" onDragOver={handleDragOver} onDrop={handleDrop}>
-      <ReactFlow
-        connectionMode={ConnectionMode.Loose}
-        edges={edges}
-        fitView
-        nodes={nodes}
-        nodeTypes={nodeTypes}
-        onConnect={onConnect}
-        onDelete={onDelete}
-        onEdgesChange={onEdgesChange}
-        onNodesChange={onNodesChange}
-      >
-        <Background variant={BackgroundVariant.Dots} />
-        <MiniMap />
-      </ReactFlow>
-      <ShapePanel />
-    </div>
+    <CanvasActionsContext.Provider value={canvasActions()}>
+      <div className="relative flex flex-1" onDragOver={handleDragOver} onDrop={handleDrop}>
+        <ReactFlow
+          connectionMode={ConnectionMode.Loose}
+          edges={edges}
+          fitView
+          nodes={nodes}
+          nodeTypes={nodeTypes}
+          onConnect={onConnect}
+          onDelete={onDelete}
+          onEdgesChange={onEdgesChange}
+          onNodesChange={onNodesChange}
+        >
+          <Background variant={BackgroundVariant.Dots} />
+          <MiniMap />
+        </ReactFlow>
+        <ShapePanel />
+      </div>
+    </CanvasActionsContext.Provider>
   )
 }
 

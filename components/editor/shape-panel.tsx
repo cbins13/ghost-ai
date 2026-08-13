@@ -1,8 +1,9 @@
 "use client"
 
-import type { DragEvent } from "react"
+import type { DragEvent, KeyboardEvent } from "react"
 import { Circle, Diamond, Hexagon, Pill as PillIcon, Square, Cylinder as CylinderIcon } from "lucide-react"
 
+import { useCanvasActions } from "@/components/editor/canvas"
 import { SHAPE_DEFAULT_SIZES, type CanvasNodeShape } from "@/types/canvas"
 
 export const SHAPE_DRAG_MIME_TYPE = "application/x-ghostai-shape"
@@ -29,16 +30,31 @@ function handleDragStart(event: DragEvent<HTMLButtonElement>, shape: CanvasNodeS
 }
 
 export function ShapePanel() {
+  const { createNodeAtCenter } = useCanvasActions()
+
+  function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>, shape: CanvasNodeShape) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault()
+      createNodeAtCenter(shape)
+    }
+  }
+
+  function handleClick(shape: CanvasNodeShape) {
+    createNodeAtCenter(shape)
+  }
+
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-6 z-10 flex justify-center">
       <div className="pointer-events-auto flex items-center gap-1 rounded-3xl border border-surface-border bg-surface/90 p-2 shadow-lg backdrop-blur">
         {SHAPE_DEFINITIONS.map(({ shape, label, icon: Icon }) => (
           <button
-            aria-label={`Drag to add ${label} node`}
+            aria-label={`Add ${label} node`}
             className="flex h-10 w-10 cursor-grab items-center justify-center rounded-xl text-copy-secondary transition-colors hover:bg-subtle hover:text-copy-primary active:cursor-grabbing"
             draggable
             key={shape}
+            onClick={() => handleClick(shape)}
             onDragStart={(event) => handleDragStart(event, shape)}
+            onKeyDown={(event) => handleKeyDown(event, shape)}
             title={label}
             type="button"
           >
