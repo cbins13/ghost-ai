@@ -75,7 +75,7 @@ export function useProjectActions({ activeProjectId }: UseProjectActionsOptions 
     }
 
     const { project } = (await response.json()) as { project: ProjectSummary }
-    router.push(`/editor/${project.id}`)
+    router.refresh()
   }
 
   async function renameProject(project: ProjectSummary) {

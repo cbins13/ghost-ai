@@ -22,7 +22,7 @@ export function EditorHome({ ownedProjects, sharedProjects }: Readonly<EditorHom
   const projectActions = useProjectActions()
 
   function openProject(projectId: string) {
-    router.push(`/editor/${projectId}`)
+    router.refresh()
     setIsSidebarOpen(false)
   }
 

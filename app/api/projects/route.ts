@@ -34,10 +34,14 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
-    body = {};
+    return apiError(400, "VALIDATION_ERROR", "Invalid JSON in request body.");
   }
 
-  const rawName = typeof body === "object" && body !== null ? (body as Record<string, unknown>).name : undefined;
+  if (body !== null && typeof body !== "object") {
+    return apiError(400, "VALIDATION_ERROR", "Request body must be an object.");
+  }
+
+  const rawName = body !== null && typeof body === "object" ? (body as Record<string, unknown>).name : undefined;
   const nameResult = resolveCreateName(rawName);
 
   if (!nameResult.ok) {
