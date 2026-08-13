@@ -42,13 +42,14 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   }
 
   const requestFingerprint = createRequestFingerprint("rename", projectId, nameResult.name);
-  const replay = await getIdempotentResponse(userId, idempotencyKey, "rename", requestFingerprint, projectId);
-
-  if (replay) {
-    return replay;
-  }
 
   try {
+    const replay = await getIdempotentResponse(userId, idempotencyKey, "rename", requestFingerprint, projectId);
+
+    if (replay) {
+      return replay;
+    }
+
     const project = await prisma.project.findUnique({ where: { id: projectId } });
 
     if (!project) {
@@ -117,13 +118,14 @@ export async function DELETE(_request: NextRequest, { params }: RouteContext) {
   const { projectId } = await params;
   const idempotencyKey = getIdempotencyKey(_request);
   const requestFingerprint = createRequestFingerprint("delete", projectId);
-  const replay = await getIdempotentResponse(userId, idempotencyKey, "delete", requestFingerprint, projectId);
-
-  if (replay) {
-    return replay;
-  }
 
   try {
+    const replay = await getIdempotentResponse(userId, idempotencyKey, "delete", requestFingerprint, projectId);
+
+    if (replay) {
+      return replay;
+    }
+
     const project = await prisma.project.findUnique({ where: { id: projectId } });
 
     if (!project) {

@@ -39,13 +39,6 @@ export function ShareDialog({ isOpen, isOwner, onOpenChange, projectId, projectN
   const copyResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    if (!isOpen) {
-      setCopyError(null)
-      setEmail("")
-    }
-  }, [isOpen])
-
-  useEffect(() => {
     return () => {
       if (copyResetTimeoutRef.current) {
         clearTimeout(copyResetTimeoutRef.current)
@@ -79,12 +72,31 @@ export function ShareDialog({ isOpen, isOwner, onOpenChange, projectId, projectN
       }
       copyResetTimeoutRef.current = setTimeout(() => setIsCopied(false), 2000)
     } catch {
+      if (copyResetTimeoutRef.current) {
+        clearTimeout(copyResetTimeoutRef.current)
+        copyResetTimeoutRef.current = null
+      }
+      setIsCopied(false)
       setCopyError("Could not copy the project link.")
     }
   }
 
+  function handleOpenChange(nextIsOpen: boolean) {
+    if (!nextIsOpen) {
+      if (copyResetTimeoutRef.current) {
+        clearTimeout(copyResetTimeoutRef.current)
+        copyResetTimeoutRef.current = null
+      }
+      setCopyError(null)
+      setEmail("")
+      setIsCopied(false)
+    }
+
+    onOpenChange(nextIsOpen)
+  }
+
   return (
-    <Dialog onOpenChange={onOpenChange} open={isOpen}>
+    <Dialog onOpenChange={handleOpenChange} open={isOpen}>
       <DialogContent className="rounded-3xl bg-surface p-6">
         <DialogHeader>
           <DialogTitle>Share {projectName}</DialogTitle>

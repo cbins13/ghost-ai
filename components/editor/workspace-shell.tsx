@@ -3,12 +3,14 @@
 import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 
+import { Canvas } from "@/components/editor/canvas"
 import { ProjectDialogs } from "@/components/editor/project-dialogs"
 import { ProjectSidebar } from "@/components/editor/project-sidebar"
 import { ShareDialog } from "@/components/editor/share-dialog"
 import { WorkspaceNavbar } from "@/components/editor/workspace-navbar"
 import { useProjectActions, type ProjectSummary } from "@/hooks/use-project-actions"
 import { type ProjectDto } from "@/lib/projects"
+import { cn } from "@/lib/utils"
 
 interface WorkspaceShellProps {
   activeProjectId: string
@@ -65,19 +67,22 @@ export function WorkspaceShell({
           sharedProjects={sharedProjects}
           toggleButtonRef={sidebarToggleRef}
         />
-        <section aria-label="Canvas" className="flex flex-1 items-center justify-center bg-base">
-          <p className="text-sm text-copy-muted">Canvas coming soon</p>
+        <section aria-label="Canvas" className="flex flex-1 bg-base">
+          <Canvas roomId={activeProjectId} />
         </section>
-        {isAiSidebarOpen ? (
-          <aside
-            aria-label="AI assistant"
-            className="hidden w-80 shrink-0 flex-col border-l border-surface-border bg-surface md:flex"
-          >
-            <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-copy-muted">
-              AI chat coming soon
-            </div>
-          </aside>
-        ) : null}
+        <aside
+          aria-hidden={!isAiSidebarOpen}
+          aria-label="AI assistant"
+          className={cn(
+            "fixed top-[4.5rem] right-4 bottom-4 z-20 hidden w-80 flex-col rounded-2xl border border-surface-border bg-surface/95 shadow-2xl backdrop-blur transition-transform duration-200 md:flex",
+            isAiSidebarOpen ? "translate-x-0" : "translate-x-[calc(100%+1.5rem)]"
+          )}
+          inert={!isAiSidebarOpen}
+        >
+          <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-copy-muted">
+            AI chat coming soon
+          </div>
+        </aside>
       </div>
       <ProjectDialogs
         activeDialog={projectActions.activeDialog}
