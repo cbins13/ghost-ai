@@ -46,6 +46,13 @@ export function ShareDialog({ isOpen, isOwner, onOpenChange, projectId, projectN
     }
   }, [])
 
+  useEffect(() => {
+    if (!isOpen) {
+      setCopyError(null)
+      setEmail("")
+    }
+  }, [isOpen])
+
   async function handleInvite(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -104,9 +111,14 @@ export function ShareDialog({ isOpen, isOwner, onOpenChange, projectId, projectN
           </form>
         ) : null}
 
-        {error || copyError ? (
+        {error ? (
           <p className="text-sm text-destructive" role="alert">
-            {error ?? copyError}
+            {error}
+          </p>
+        ) : null}
+        {copyError ? (
+          <p className="text-sm text-destructive" role="alert">
+            {copyError}
           </p>
         ) : null}
 

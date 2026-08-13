@@ -123,11 +123,8 @@ export function useCollaborators(projectId: string, isEnabled: boolean) {
     const removalToken = Symbol(collaboratorId)
     setError(null)
     pendingRemovalIdsRef.current.set(collaboratorId, removalToken)
-    let removedCollaborator: CollaboratorDto | undefined
-    setCollaborators((current) => {
-      removedCollaborator = current.find((collaborator) => collaborator.id === collaboratorId)
-      return current.filter((collaborator) => collaborator.id !== collaboratorId)
-    })
+    const removedCollaborator = collaborators.find((collaborator) => collaborator.id === collaboratorId)
+    setCollaborators((current) => current.filter((collaborator) => collaborator.id !== collaboratorId))
 
     try {
       const response = await fetch(`/api/projects/${projectId}/collaborators/${collaboratorId}`, {
@@ -162,7 +159,6 @@ export function useCollaborators(projectId: string, isEnabled: boolean) {
       pendingRemovalIdsRef.current.get(collaboratorId) === removalToken
     ) {
       pendingRemovalIdsRef.current.delete(collaboratorId)
-      mutationGenerationRef.current += 1
     }
   }
 

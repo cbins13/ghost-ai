@@ -37,7 +37,7 @@ model ProjectMutation {
   idempotencyKey String
   operation      String
   projectId      String?
-  requestFingerprint String
+  requestFingerprint String @default("")
   responseStatus Int
   responseBody   Json?
   createdAt      DateTime @default(now())

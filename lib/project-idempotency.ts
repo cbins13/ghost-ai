@@ -38,7 +38,7 @@ export async function getIdempotentResponse(
 
   if (
     mutation.operation !== operation ||
-    mutation.projectId !== projectId ||
+    (mutation.projectId ?? null) !== (projectId ?? null) ||
     mutation.requestFingerprint !== requestFingerprint
   ) {
     return conflict("This idempotency key was already used for a different project mutation.")
