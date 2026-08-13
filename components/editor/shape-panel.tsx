@@ -28,16 +28,25 @@ function handleDragStart(event: DragEvent<HTMLButtonElement>, shape: CanvasNodeS
   event.dataTransfer.effectAllowed = "copy"
 }
 
-export function ShapePanel() {
+interface ShapePanelProps {
+  onShapeCreate?: (shape: CanvasNodeShape) => void
+}
+
+export function ShapePanel({ onShapeCreate }: Readonly<ShapePanelProps>) {
+  function handleShapeClick(shape: CanvasNodeShape) {
+    onShapeCreate?.(shape)
+  }
+
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-6 z-10 flex justify-center">
       <div className="pointer-events-auto flex items-center gap-1 rounded-3xl border border-surface-border bg-surface/90 p-2 shadow-lg backdrop-blur">
         {SHAPE_DEFINITIONS.map(({ shape, label, icon: Icon }) => (
           <button
-            aria-label={`Drag to add ${label} node`}
+            aria-label={`Add ${label} node`}
             className="flex h-10 w-10 cursor-grab items-center justify-center rounded-xl text-copy-secondary transition-colors hover:bg-subtle hover:text-copy-primary active:cursor-grabbing"
             draggable
             key={shape}
+            onClick={() => handleShapeClick(shape)}
             onDragStart={(event) => handleDragStart(event, shape)}
             title={label}
             type="button"

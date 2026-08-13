@@ -154,4 +154,4 @@ Update this file whenever the current phase, active feature, or implementation s
 ## Session Notes
 
 - Last completed implementation unit: context/feature-specs/12-shape-panel.md
-- Unit status: completed; a bottom-center `ShapePanel` lets users drag one of six shapes onto the canvas, `canvas.tsx`'s `dragover`/`drop` handlers validate the payload and clamp node size before creating a node via `onNodesChange([{ type: "add", item }])`, and `CanvasNodeRenderer` renders new `canvasNode`s as a bordered rectangle. `npm run build` and `npm run lint` pass. `LIVEBLOCKS_SECRET_KEY` in `.env.local` is still a placeholder and must be set by the user before the canvas will connect at runtime.
+- Unit status: completed; a bottom-center `ShapePanel` lets users drag one of six shapes onto the canvas, `canvas.tsx`'s `dragover`/`drop` handlers validate the payload and clamp node size before creating a node via `onNodesChange([{ type: "add", item }])`, and `CanvasNodeRenderer` renders new `canvasNode`s as a bordered rectangle. `npm run build` and `npm run lint` pass. A real `LIVEBLOCKS_SECRET_KEY` was supplied and verified.

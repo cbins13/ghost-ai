@@ -23,6 +23,7 @@ import {
   MAX_NODE_DIMENSION,
   MIN_NODE_DIMENSION,
   NODE_SHAPES,
+  SHAPE_DEFAULT_SIZES,
   type CanvasEdge,
   type CanvasNode,
   type CanvasNodeShape,
@@ -116,6 +117,14 @@ function parseShapeDragPayload(raw: string): ShapeDragPayload | null {
 
   const { width, height } = size as Record<string, unknown>
 
+  if (typeof width !== "number" || !Number.isFinite(width)) {
+    return null
+  }
+
+  if (typeof height !== "number" || !Number.isFinite(height)) {
+    return null
+  }
+
   return {
     shape,
     size: {
@@ -134,7 +143,7 @@ function CanvasFlow() {
     edges: { initial: [] },
     suspense: true,
   })
-  const { screenToFlowPosition } = useReactFlow<CanvasNode>()
+  const { screenToFlowPosition, getViewport } = useReactFlow<CanvasNode>()
 
   const handleDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
     if (!event.dataTransfer.types.includes(SHAPE_DRAG_MIME_TYPE)) {
@@ -161,7 +170,12 @@ function CanvasFlow() {
         return
       }
 
-      const position = screenToFlowPosition({ x: event.clientX, y: event.clientY })
+      const dropPosition = screenToFlowPosition({ x: event.clientX, y: event.clientY })
+
+      const position = {
+        x: dropPosition.x - payload.size.width / 2,
+        y: dropPosition.y - payload.size.height / 2,
+      }
 
       const newNode: CanvasNode = {
         id: crypto.randomUUID(),
@@ -182,6 +196,38 @@ function CanvasFlow() {
     [onNodesChange, screenToFlowPosition],
   )
 
+  const handleShapeCreate = useCallback(
+    (shape: CanvasNodeShape) => {
+      const size = SHAPE_DEFAULT_SIZES[shape]
+      const viewport = getViewport()
+
+      const centerX = (-viewport.x + window.innerWidth / 2) / viewport.zoom
+      const centerY = (-viewport.y + window.innerHeight / 2) / viewport.zoom
+
+      const position = {
+        x: centerX - size.width / 2,
+        y: centerY - size.height / 2,
+      }
+
+      const newNode: CanvasNode = {
+        id: crypto.randomUUID(),
+        type: "canvasNode",
+        position,
+        width: size.width,
+        height: size.height,
+        data: {
+          label: "",
+          color: DEFAULT_NODE_COLOR.fill,
+          textColor: DEFAULT_NODE_COLOR.text,
+          shape,
+        },
+      }
+
+      onNodesChange([{ type: "add", item: newNode }])
+    },
+    [onNodesChange, getViewport],
+  )
+
   return (
     <div className="relative flex flex-1" onDragOver={handleDragOver} onDrop={handleDrop}>
       <ReactFlow
@@ -198,7 +244,7 @@ function CanvasFlow() {
         <Background variant={BackgroundVariant.Dots} />
         <MiniMap />
       </ReactFlow>
-      <ShapePanel />
+      <ShapePanel onShapeCreate={handleShapeCreate} />
     </div>
   )
 }
