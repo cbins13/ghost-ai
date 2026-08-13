@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useState, type SyntheticEvent } from "react"
+import { useRef, useState, type SyntheticEvent } from "react"
 
 export interface ProjectSummary {
   id: string
@@ -19,6 +19,8 @@ interface UseProjectActionsOptions {
   activeProjectId?: string
 }
 
+const PROJECT_REQUEST_TIMEOUT_MS = 10_000
+
 async function parseErrorMessage(response: Response, fallback: string) {
   try {
     const body = await response.json()
@@ -34,11 +36,10 @@ export function useProjectActions({ activeProjectId }: UseProjectActionsOptions 
   const [projectName, setProjectName] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const activeRequestRef = useRef<{ controller: AbortController; timedOut: boolean } | null>(null)
 
   function closeDialog() {
-    if (isLoading) {
-      return
-    }
+    activeRequestRef.current?.controller.abort()
 
     setActiveDialog(null)
     setProjectName("")
@@ -63,26 +64,28 @@ export function useProjectActions({ activeProjectId }: UseProjectActionsOptions 
     setActiveDialog({ type: "delete", project })
   }
 
-  async function createProject() {
+  async function createProject(signal: AbortSignal) {
     const response = await fetch("/api/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: projectName.trim() }),
+      signal,
     })
 
     if (!response.ok) {
       throw new Error(await parseErrorMessage(response, "Could not create the project."))
     }
 
-    await response.json()
-    router.refresh()
+    const { project } = (await response.json()) as { project: ProjectSummary }
+    router.push(`/editor/${project.id}`)
   }
 
-  async function renameProject(project: ProjectSummary) {
+  async function renameProject(project: ProjectSummary, signal: AbortSignal) {
     const response = await fetch(`/api/projects/${project.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: projectName.trim() }),
+      signal,
     })
 
     if (!response.ok) {
@@ -92,8 +95,8 @@ export function useProjectActions({ activeProjectId }: UseProjectActionsOptions 
     router.refresh()
   }
 
-  async function deleteProject(project: ProjectSummary) {
-    const response = await fetch(`/api/projects/${project.id}`, { method: "DELETE" })
+  async function deleteProject(project: ProjectSummary, signal: AbortSignal) {
+    const response = await fetch(`/api/projects/${project.id}`, { method: "DELETE", signal })
 
     if (!response.ok) {
       throw new Error(await parseErrorMessage(response, "Could not delete the project."))
@@ -119,25 +122,42 @@ export function useProjectActions({ activeProjectId }: UseProjectActionsOptions 
 
     setIsLoading(true)
     setError(null)
+    const request = { controller: new AbortController(), timedOut: false }
+    activeRequestRef.current = request
+    const timeoutId = setTimeout(() => {
+      request.timedOut = true
+      request.controller.abort()
+    }, PROJECT_REQUEST_TIMEOUT_MS)
 
     try {
       if (activeDialog.type === "create") {
-        await createProject()
+        await createProject(request.controller.signal)
       }
 
       if (activeDialog.type === "rename" && activeDialog.project) {
-        await renameProject(activeDialog.project)
+        await renameProject(activeDialog.project, request.controller.signal)
       }
 
       if (activeDialog.type === "delete" && activeDialog.project) {
-        await deleteProject(activeDialog.project)
+        await deleteProject(activeDialog.project, request.controller.signal)
       }
 
       setActiveDialog(null)
       setProjectName("")
     } catch (submitError) {
+      if (request.controller.signal.aborted) {
+        if (request.timedOut) {
+          setError("The request timed out. Please try again.")
+        }
+        return
+      }
+
       setError(submitError instanceof Error ? submitError.message : "Something went wrong.")
     } finally {
+      clearTimeout(timeoutId)
+      if (activeRequestRef.current === request) {
+        activeRequestRef.current = null
+      }
       setIsLoading(false)
     }
   }

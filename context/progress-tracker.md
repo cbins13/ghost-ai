@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Completed: Feature Unit 07
+- Completed: Feature Unit 09
 
 ## Current Goal
 
-- Prepare for the next feature after wiring the editor home to the real project API.
+- Prepare for the next feature: real canvas logic (Liveblocks + React Flow) inside the workspace shell.
 
 ## Completed
 
@@ -73,15 +73,39 @@ Update this file whenever the current phase, active feature, or implementation s
 - Updated `components/editor/project-sidebar.tsx` and `components/editor/project-dialogs.tsx` to use the hook's `ProjectSummary` type instead of the removed `MockProject` type; `ProjectDialogs` now accepts and displays an `error` string.
 - Verified `npm run build` and `npm run lint` pass.
 
+### Feature Unit 08: Edit Workspace Shell
+
+- Added `lib/project-access.ts` with `getCurrentIdentity()` (Clerk `userId` + primary email) and `getProjectWithAccess(projectId, identity)`, which returns the project for the owner or a matching `ProjectCollaborator` (looked up via the `projectId_email` unique constraint, email canonicalized with `trim().toLowerCase()`), or `null` otherwise.
+- Added `components/editor/access-denied.tsx`: centered layout, lock icon, short message, link back to `/editor`.
+- Added `app/editor/[roomId]/page.tsx` as a server component: redirects unauthenticated visitors to `/sign-in`, renders `AccessDenied` for missing or unauthorized projects, otherwise fetches the caller's owned/shared project lists via the existing `getUserProjects` and renders the workspace shell.
+- Added `components/editor/workspace-shell.tsx` (client) composing the navbar, `ProjectSidebar`, a canvas placeholder section, and a right-side AI sidebar placeholder toggled from the navbar. Reuses `useProjectActions` with `activeProjectId` so deleting the open project redirects to `/editor`; opening a different project from the sidebar does a client-side `router.push` to its room route.
+- Added `components/editor/workspace-navbar.tsx`: sidebar toggle, centered project name, share button (inert placeholder), AI sidebar toggle, `UserButton`.
+- Updated `components/editor/project-sidebar.tsx` to accept an optional `activeProjectId` and highlight the matching project row (`aria-current` + `bg-accent-dim`), used by both the workspace shell and (harmlessly, since it's unset there) editor home.
+- Updated `components/editor/editor-home.tsx`'s `openProject` to `router.push` to `/editor/[projectId]` now that the route exists, replacing the earlier close-sidebar-only stub.
+- No Liveblocks, AI chat, or sharing behavior implemented yet — canvas and AI sidebar are static placeholders per spec scope.
+- Verified `npm run build` and `npm run lint` pass.
+
+### Feature Unit 09: Share Dialog
+
+- Added `lib/collaborators.ts` with `getEnrichedCollaborators(projectId)`, which loads `ProjectCollaborator` rows and enriches them with Clerk profile data (`clerkClient().users.getUserList({ emailAddress })`, matched case-insensitively against each user's email addresses); falls back to email-only display per collaborator if the Clerk lookup fails or no match is found. Also exports `isValidEmail`.
+- Added `app/api/projects/[projectId]/collaborators/route.ts`: `GET` requires an authenticated session and owner-or-collaborator access via `getProjectWithAccess` (401/404, no `403` distinction — matches the existing indistinguishable-404 policy already used for project access); `POST` requires session + owner ownership check (403 for non-owners), validates and normalizes the email, rejects inviting the owner's own email or an existing collaborator (400/409), then returns the refreshed enriched list.
+- Added `app/api/projects/[projectId]/collaborators/[collaboratorId]/route.ts` with `DELETE`, owner-only (403 for non-owners), 404 if the collaborator doesn't belong to the project.
+- Added `hooks/use-collaborators.ts`: loads collaborators on dialog open (effect-scoped async load with a cancellation flag to satisfy the `react-hooks/set-state-in-effect` lint rule), plus `inviteCollaborator` and an optimistic `removeCollaborator` that rolls back on failure.
+- Added `components/editor/share-dialog.tsx`: invite form (owner only), collaborator list with Clerk avatar/name fallback to initials/email, remove button (owner only), and a copy-link button with temporary "Copied!" feedback.
+- Wired a `Share` button click handler through `components/editor/workspace-navbar.tsx` (`onShareClick` prop) and dialog open state in `components/editor/workspace-shell.tsx`. Added an `isOwner` prop to `WorkspaceShell`, computed in `app/editor/[roomId]/page.tsx` as `project.ownerId === identity.userId` and passed to `ShareDialog` to gate invite/remove UI.
+- No local user table added; collaborator identity enrichment is a live Clerk Backend API call per share-dialog open, not cached or persisted.
+- Hardened project and collaborator flows with cancellable requests, verified-email-only invitation matching, batched Clerk profile lookups, safe optimistic rollback, and clipboard failure handling.
+- Verified `npm run build` and `npm run lint` pass.
+
 ## In Progress
 
 - None.
 
 ## Next Up
 
-- Build the `/editor/[projectId]` workspace route/canvas; `useProjectActions`'s `activeProjectId` option is ready for it to enable delete-redirect-when-active behavior.
+- Wire the canvas placeholder in `components/editor/workspace-shell.tsx` to real Liveblocks + React Flow state.
+- Implement the AI sidebar placeholder's real chat behavior.
 - Continue with the next editor feature unit.
-- When collaborator-facing API routes and `lib/project-access.ts` are built, canonicalize collaborator emails with `trim().toLowerCase()` before every write and lookup against `ProjectCollaborator.email` — Unit 06's `GET /api/projects` reads via this field but no write path exists yet.
 
 ## Open Questions
 
@@ -93,5 +117,5 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Session Notes
 
-- Last completed implementation unit: context/feature-specs/07-wire-editor-home.md
-- Unit status: completed; editor home fetches real data server-side, create/rename/delete call the real API, `npm run build` and `npm run lint` pass.
+- Last completed implementation unit: context/feature-specs/09-share-dialog.md
+- Unit status: completed; owners can invite/remove collaborators and copy the project link from the share dialog, collaborators get read-only access, and names/avatars are enriched live from Clerk. `npm run build` and `npm run lint` pass.

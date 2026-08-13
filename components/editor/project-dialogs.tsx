@@ -118,7 +118,7 @@ export function ProjectDialogs({
           {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
 
           <DialogFooter className="-mx-6 -mb-6 rounded-b-3xl bg-surface-elevated">
-            <Button disabled={isLoading} onClick={onClose} type="button" variant="ghost">
+            <Button onClick={onClose} type="button" variant="ghost">
               Cancel
             </Button>
             <Button

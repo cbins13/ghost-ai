@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { apiError, internalError, unauthorized } from "@/lib/api-response";
 import { prisma } from "@/lib/prisma";
+import { getVerifiedPrimaryEmail } from "@/lib/project-access";
 import { getUserProjects, resolveCreateName, toProjectDto } from "@/lib/projects";
 
 export async function GET() {
@@ -14,7 +15,7 @@ export async function GET() {
 
   try {
     const user = await currentUser();
-    const email = user?.primaryEmailAddress?.emailAddress;
+    const email = getVerifiedPrimaryEmail(user);
     const projects = await getUserProjects(userId, email);
 
     return NextResponse.json(projects);

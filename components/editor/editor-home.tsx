@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Plus } from "lucide-react"
 
 import { EditorNavbar } from "@/components/editor/editor-navbar"
@@ -15,14 +16,13 @@ interface EditorHomeProps {
 }
 
 export function EditorHome({ ownedProjects, sharedProjects }: Readonly<EditorHomeProps>) {
+  const router = useRouter()
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const sidebarToggleRef = useRef<HTMLButtonElement>(null)
   const projectActions = useProjectActions()
 
-  function openProject() {
-    // Note: /editor/[projectId] route does not exist yet
-    // For now, just close the sidebar (future: navigate when route exists)
-    setIsSidebarOpen(false)
+  function openProject(projectId: string) {
+    router.push(`/editor/${projectId}`)
   }
 
   return (
