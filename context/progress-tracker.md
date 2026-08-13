@@ -95,6 +95,8 @@ Update this file whenever the current phase, active feature, or implementation s
 - Wired a `Share` button click handler through `components/editor/workspace-navbar.tsx` (`onShareClick` prop) and dialog open state in `components/editor/workspace-shell.tsx`. Added an `isOwner` prop to `WorkspaceShell`, computed in `app/editor/[roomId]/page.tsx` as `project.ownerId === identity.userId` and passed to `ShareDialog` to gate invite/remove UI.
 - No local user table added; collaborator identity enrichment is a live Clerk Backend API call per share-dialog open, not cached or persisted.
 - Hardened project and collaborator flows with cancellable requests, verified-email-only invitation matching, batched Clerk profile lookups, safe optimistic rollback, and clipboard failure handling.
+- Added durable idempotency keys for project mutations and protected optimistic collaborator removals from stale list and invite snapshots.
+- Hardened collaborator mutation concurrency across project changes and bound idempotent mutation replays to normalized request fingerprints.
 - Verified `npm run build` and `npm run lint` pass.
 
 ## In Progress

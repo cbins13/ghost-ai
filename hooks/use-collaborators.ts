@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 export interface CollaboratorDto {
   id: string
@@ -24,11 +24,30 @@ export function useCollaborators(projectId: string, isEnabled: boolean) {
   const [isLoading, setIsLoading] = useState(false)
   const [isInviting, setIsInviting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const activeProjectIdRef = useRef(projectId)
+  const mutationGenerationRef = useRef(0)
+  const pendingRemovalIdsRef = useRef(new Map<string, symbol>())
+
+  function applyCollaboratorSnapshot(snapshot: CollaboratorDto[], snapshotProjectId: string, generation: number) {
+    if (snapshotProjectId !== activeProjectIdRef.current || generation < mutationGenerationRef.current) {
+      return
+    }
+
+    setCollaborators(snapshot.filter((collaborator) => !pendingRemovalIdsRef.current.has(collaborator.id)))
+  }
+
+  useEffect(() => {
+    activeProjectIdRef.current = projectId
+    pendingRemovalIdsRef.current.clear()
+    mutationGenerationRef.current += 1
+  }, [projectId])
 
   useEffect(() => {
     if (!isEnabled) {
       return
     }
+
+    const readGeneration = mutationGenerationRef.current
 
     let isCancelled = false
 
@@ -45,7 +64,7 @@ export function useCollaborators(projectId: string, isEnabled: boolean) {
 
         const body = await response.json()
         if (!isCancelled) {
-          setCollaborators(body.collaborators)
+          applyCollaboratorSnapshot(body.collaborators, projectId, readGeneration)
         }
       } catch (loadError) {
         if (!isCancelled) {
@@ -66,6 +85,8 @@ export function useCollaborators(projectId: string, isEnabled: boolean) {
   }, [isEnabled, projectId])
 
   async function inviteCollaborator(email: string) {
+    const invitationProjectId = projectId
+    const readGeneration = mutationGenerationRef.current
     setIsInviting(true)
     setError(null)
 
@@ -81,10 +102,12 @@ export function useCollaborators(projectId: string, isEnabled: boolean) {
       }
 
       const body = await response.json()
-      setCollaborators(body.collaborators)
+      applyCollaboratorSnapshot(body.collaborators, invitationProjectId, readGeneration)
       return true
     } catch (inviteError) {
-      setError(inviteError instanceof Error ? inviteError.message : "Something went wrong.")
+      if (invitationProjectId === activeProjectIdRef.current) {
+        setError(inviteError instanceof Error ? inviteError.message : "Something went wrong.")
+      }
       return false
     } finally {
       setIsInviting(false)
@@ -92,7 +115,14 @@ export function useCollaborators(projectId: string, isEnabled: boolean) {
   }
 
   async function removeCollaborator(collaboratorId: string) {
+    if (pendingRemovalIdsRef.current.has(collaboratorId)) {
+      return
+    }
+
+    const removalProjectId = projectId
+    const removalToken = Symbol(collaboratorId)
     setError(null)
+    pendingRemovalIdsRef.current.set(collaboratorId, removalToken)
     let removedCollaborator: CollaboratorDto | undefined
     setCollaborators((current) => {
       removedCollaborator = current.find((collaborator) => collaborator.id === collaboratorId)
@@ -108,6 +138,14 @@ export function useCollaborators(projectId: string, isEnabled: boolean) {
         throw new Error(await parseErrorMessage(response, "Could not remove this collaborator."))
       }
     } catch (removeError) {
+      if (
+        removalProjectId !== activeProjectIdRef.current ||
+        pendingRemovalIdsRef.current.get(collaboratorId) !== removalToken
+      ) {
+        return
+      }
+
+      pendingRemovalIdsRef.current.delete(collaboratorId)
       setCollaborators((current) => {
         if (!removedCollaborator || current.some((collaborator) => collaborator.id === collaboratorId)) {
           return current
@@ -116,6 +154,15 @@ export function useCollaborators(projectId: string, isEnabled: boolean) {
         return [...current, removedCollaborator].sort((first, second) => first.createdAt.localeCompare(second.createdAt))
       })
       setError(removeError instanceof Error ? removeError.message : "Could not remove this collaborator.")
+      return
+    }
+
+    if (
+      removalProjectId === activeProjectIdRef.current &&
+      pendingRemovalIdsRef.current.get(collaboratorId) === removalToken
+    ) {
+      pendingRemovalIdsRef.current.delete(collaboratorId)
+      mutationGenerationRef.current += 1
     }
   }
 
