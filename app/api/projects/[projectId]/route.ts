@@ -55,7 +55,10 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     });
 
     return NextResponse.json({ project: toProjectDto(updated) });
-  } catch {
+  } catch (error) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "P2025") {
+      return notFound();
+    }
     return internalError();
   }
 }
@@ -83,7 +86,10 @@ export async function DELETE(_request: NextRequest, { params }: RouteContext) {
     await prisma.project.delete({ where: { id: projectId } });
 
     return new NextResponse(null, { status: 204 });
-  } catch {
+  } catch (error) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "P2025") {
+      return notFound();
+    }
     return internalError();
   }
 }

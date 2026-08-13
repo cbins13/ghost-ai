@@ -74,8 +74,8 @@ export function useProjectActions({ activeProjectId }: UseProjectActionsOptions 
       throw new Error(await parseErrorMessage(response, "Could not create the project."))
     }
 
-    const { project } = (await response.json()) as { project: ProjectSummary }
-    router.push(`/editor/${project.id}`)
+    await response.json()
+    router.refresh()
   }
 
   async function renameProject(project: ProjectSummary) {
