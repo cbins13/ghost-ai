@@ -27,7 +27,9 @@ export function StarterTemplatesImportDialog({
           <DialogDescription>
             {hasConflict
               ? "Someone else edited this canvas while the import was pending. Review the latest changes, then retry the import if you still want to replace the canvas."
-              : `Importing "${template?.name}" will replace every node and edge currently on the canvas. This can be undone with a single undo.`}
+              : template?.name
+                ? `Importing "${template.name}" will replace every node and edge currently on the canvas. This can be undone with a single undo.`
+                : "Importing this template will replace every node and edge currently on the canvas. This can be undone with a single undo."}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

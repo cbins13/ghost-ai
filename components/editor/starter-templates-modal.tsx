@@ -110,7 +110,7 @@ function TemplatePreview({ template }: Readonly<{ template: CanvasTemplate }>) {
 
   return (
     <div className="w-full overflow-hidden rounded-lg bg-base" style={{ height: PREVIEW_HEIGHT }}>
-      <svg className="h-full w-full" preserveAspectRatio="xMidYMid meet" viewBox={viewBox}>
+      <svg aria-hidden="true" className="h-full w-full" preserveAspectRatio="xMidYMid meet" viewBox={viewBox}>
         {template.edges.map((templateEdge) => {
           const from = nodeCenter(templateEdge.source)
           const to = nodeCenter(templateEdge.target)
@@ -164,7 +164,7 @@ export function StarterTemplatesModal({
                 <h3 className="text-base font-medium text-copy-primary">{template.name}</h3>
                 <p className="mt-1 text-sm text-copy-muted">{template.description}</p>
               </div>
-              <Button onClick={() => handleImport(template)}>Import</Button>
+              <Button aria-label={`Import ${template.name}`} onClick={() => handleImport(template)}>Import</Button>
             </div>
           ))}
         </div>

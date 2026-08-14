@@ -30,17 +30,18 @@ export function useKeyboardShortcuts({ reactFlowInstance, onUndo, onRedo }: UseK
 
       const { key, ctrlKey, metaKey, shiftKey, altKey } = event
       const exactlyOneCtrlOrMeta = ctrlKey !== metaKey
+      const normalizedKey = key.toLowerCase()
 
       const isZoomIn = (key === "=" && !ctrlKey && !metaKey && !shiftKey && !altKey) ||
         (key === "+" && shiftKey && !ctrlKey && !metaKey && !altKey)
 
       const isZoomOut = key === "-" && !ctrlKey && !metaKey && !shiftKey && !altKey
 
-      const isUndo = key === "z" && exactlyOneCtrlOrMeta && !shiftKey && !altKey
+      const isUndo = normalizedKey === "z" && exactlyOneCtrlOrMeta && !shiftKey && !altKey
 
       const isRedo =
-        (key === "z" && exactlyOneCtrlOrMeta && shiftKey && !altKey) ||
-        (key === "y" && exactlyOneCtrlOrMeta && !shiftKey && !altKey)
+        (normalizedKey === "z" && exactlyOneCtrlOrMeta && shiftKey && !altKey) ||
+        (normalizedKey === "y" && exactlyOneCtrlOrMeta && !shiftKey && !altKey)
 
       if (isZoomIn) {
         event.preventDefault()

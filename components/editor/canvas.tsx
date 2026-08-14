@@ -1,6 +1,6 @@
 "use client"
 
-import { Component, createContext, useCallback, useContext, useState, type DragEvent, type ReactNode } from "react"
+import { Component, createContext, useCallback, useContext, useMemo, useState, type DragEvent, type ReactNode } from "react"
 import {
   ClientSideSuspense,
   LiveblocksProvider,
@@ -25,7 +25,6 @@ import {
   type EdgeTypes,
   type NodeTypes,
 } from "@xyflow/react"
-
 import "@xyflow/react/dist/style.css"
 
 import { CanvasControlBar } from "@/components/editor/canvas-control-bar"
@@ -183,7 +182,7 @@ function parseShapeDragPayload(raw: string): ShapeDragPayload | null {
 
 function snapshotSignature(nodes: CanvasNode[], edges: CanvasEdge[]): string {
   const nodeSignature = nodes
-    .map((n) => `${n.id}:${n.position.x},${n.position.y}:${JSON.stringify(n.data)}`)
+    .map((n) => `${n.id}:${n.position.x},${n.position.y}:${n.width ?? 0}x${n.height ?? 0}:${JSON.stringify(n.data)}`)
     .sort()
     .join("|")
   const edgeSignature = edges
@@ -434,13 +433,13 @@ function CanvasFlow({ isTemplatesModalOpen, onTemplatesModalOpenChange }: Readon
     [edges, onEdgesChange],
   )
 
-  const canvasActions = useCallback(
+  const canvasActions = useMemo(
     () => ({ createNodeAtCenter, updateNodeLabel, updateNodeColor, updateEdgeLabel }),
     [createNodeAtCenter, updateNodeLabel, updateNodeColor, updateEdgeLabel],
   )
 
   return (
-    <CanvasActionsContext.Provider value={canvasActions()}>
+    <CanvasActionsContext.Provider value={canvasActions}>
       <div className="relative flex flex-1" onDragOver={handleDragOver} onDrop={handleDrop}>
         <ReactFlow
           connectionMode={ConnectionMode.Loose}
