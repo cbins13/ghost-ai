@@ -31,6 +31,7 @@ export function WorkspaceShell({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isAiSidebarOpen, setIsAiSidebarOpen] = useState(false)
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false)
+  const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false)
   const sidebarToggleRef = useRef<HTMLButtonElement>(null)
   const projectActions = useProjectActions({ activeProjectId })
 
@@ -51,6 +52,7 @@ export function WorkspaceShell({
         onAiSidebarToggle={() => setIsAiSidebarOpen((isOpen) => !isOpen)}
         onShareClick={() => setIsShareDialogOpen(true)}
         onSidebarToggle={() => setIsSidebarOpen((isOpen) => !isOpen)}
+        onTemplatesClick={() => setIsTemplatesModalOpen(true)}
         projectName={project.name}
         sidebarToggleRef={sidebarToggleRef}
       />
@@ -68,7 +70,11 @@ export function WorkspaceShell({
           toggleButtonRef={sidebarToggleRef}
         />
         <section aria-label="Canvas" className="flex flex-1 bg-base">
-          <Canvas roomId={activeProjectId} />
+          <Canvas
+            isTemplatesModalOpen={isTemplatesModalOpen}
+            onTemplatesModalOpenChange={setIsTemplatesModalOpen}
+            roomId={activeProjectId}
+          />
         </section>
         <aside
           aria-hidden={!isAiSidebarOpen}
