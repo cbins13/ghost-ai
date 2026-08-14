@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Completed: Feature Unit 09
+- Completed: Feature Unit 12
 
 ## Current Goal
 
-- Prepare for the next feature: real canvas logic (Liveblocks + React Flow) inside the workspace shell.
+- Build custom node/edge rendering and canvas controls on top of the collaborative canvas foundation.
 
 ## Completed
 
@@ -97,6 +97,38 @@ Update this file whenever the current phase, active feature, or implementation s
 - Hardened project and collaborator flows with cancellable requests, verified-email-only invitation matching, batched Clerk profile lookups, safe optimistic rollback, and clipboard failure handling.
 - Added durable idempotency keys for project mutations and protected optimistic collaborator removals from stale list and invite snapshots.
 - Hardened collaborator mutation concurrency across project changes and bound idempotent mutation replays to normalized request fingerprints.
+- At revision `6b5727d` (2026-08-13), `npm run build` passed; `npm run lint` failed with the known `react-hooks/set-state-in-effect` violation in `components/editor/share-dialog.tsx`.
+
+### Feature Unit 10: Liveblocks Setup
+
+- Defined `liveblocks.config.ts`: `Presence` (`cursor: {x,y} | null`, `isThinking: boolean`) and `UserMeta` (`id`, `info: { name, avatar, color }`). Unused scaffold fields (`Storage`, `RoomEvent`, `ThreadMetadata`, `RoomInfo`) typed as `Record<string, never>` to satisfy strict lint instead of `{}`.
+- Installed `@liveblocks/node` (`^3.23.1`), which the spec assumed was already installed but was missing from `package.json`/`node_modules` — required for server-side room provisioning and session token creation.
+- Added `lib/liveblocks.ts`: `getLiveblocksClient()` lazily constructs and caches a `Liveblocks` node client on `global` (mirrors `lib/prisma.ts`'s caching pattern), only reading `LIVEBLOCKS_SECRET_KEY` at call time so route collection during `npm run build` doesn't fail before the secret is configured. Also exports `getCursorColorForUser(userId)`, a deterministic hash into the existing 8-color canvas node text palette from `context/ui-context.md`.
+- Added `app/api/liveblocks-auth/route.ts` (`POST`): requires Clerk auth via `getCurrentIdentity()`, verifies project access via `getProjectWithAccess()` (`403` if unauthorized or missing `room` in the body), provisions the room with `getOrCreateRoom` (project ID as room ID, empty `defaultAccesses`) retried up to 3 times with exponential backoff, and returns `500` without issuing a session token if provisioning still fails after retries. On success, builds a session via `prepareSession` with name/avatar from Clerk's `currentUser()` and the deterministic cursor color, grants full access to the room, and returns the Liveblocks `authorize()` response body/status directly.
+- Added `LIVEBLOCKS_SECRET_KEY=` placeholder to `.env.local` — **the user must fill in a real secret key from the Liveblocks dashboard before the auth route will work at runtime.**
+- No client-side `LiveblocksProvider`/room wiring added yet — this unit is server-side setup only, matching the spec's scope.
+- At the time of this unit, `npm run build` passed while `npm run lint` had the known Unit 09 `react-hooks/set-state-in-effect` failure in `components/editor/share-dialog.tsx`; that failure was resolved after Unit 11.
+
+### Feature Unit 11: Base Canvas
+
+- Added `types/canvas.ts`: `CanvasNodeShape`, `NODE_COLORS`/`DEFAULT_NODE_COLOR` and `NODE_SHAPES` (matching the 8-color palette and 6 shapes documented in `context/ui-context.md`), `CanvasNodeData` (`label`, `color`, `textColor`, `shape`), `CanvasEdgeData` (optional `label`), and the `CanvasNode`/`CanvasEdge` type aliases (`Node<CanvasNodeData, "canvasNode">` / `Edge<CanvasEdgeData, "canvasEdge">`). Resized `width`/`height` persist automatically — they're standard `@xyflow/react` `Node` fields, not excluded by `useLiveblocksFlow`'s base sync config, so no extra handling was needed.
+- Added `components/editor/canvas.tsx` (client): `Canvas` composes `LiveblocksProvider` (`authEndpoint="/api/liveblocks-auth"`) → `RoomProvider` (`id={roomId}`, `initialPresence={{ cursor: null, isThinking: false }}`) → `ClientSideSuspense` (loading fallback) around an inner `CanvasFlow` that calls `useLiveblocksFlow<CanvasNode, CanvasEdge>({ suspense: true, nodes: { initial: [] }, edges: { initial: [] } })` and passes the synced `nodes`/`edges`/change handlers into `ReactFlow` with `connectionMode={ConnectionMode.Loose}`, `fitView`, a dot-pattern `Background`, and `MiniMap`. Wrapped the whole tree in a small class-based `CanvasErrorBoundary` (`getDerivedStateFromError`) to catch Liveblocks connection failures, since `ClientSideSuspense`'s `fallback` only covers the loading state, not thrown errors.
+- Imported `@xyflow/react/dist/style.css` in `canvas.tsx` (not previously imported anywhere in the app).
+- Replaced the canvas placeholder in `components/editor/workspace-shell.tsx` with `<Canvas roomId={activeProjectId} />` (project ID used directly as the Liveblocks room ID, matching Unit 10's auth route).
+- No custom node/edge rendering, connection-mode controls, persistence, or AI behavior added — out of scope per spec.
+- At the time of this unit, `npm run build` passed while `npm run lint` still had the known Unit 09 `share-dialog.tsx` error; the dialog lifecycle fix later restored lint health.
+- Follow-up: the share-dialog close and failed-copy state resets now clear the pending copy timeout; `npm run lint` and `npm run build` pass, with the build generating the Prisma client first.
+- Follow-up: `/api/liveblocks-auth` was returning a 500 (`context/current-issues.md`) because `LIVEBLOCKS_SECRET_KEY` in `.env.local` was still an empty placeholder, so every `getOrCreateRoom` attempt threw immediately through all 3 retries. The user supplied a real secret key; verified with an unauthenticated `POST /api/liveblocks-auth`, which now correctly redirects to sign-in (Clerk) instead of failing at room provisioning. `context/current-issues.md` cleared.
+- Follow-up: `DELETE /api/projects/[projectId]` was returning a 500. Root cause: `lib/prisma.ts` caches the `PrismaClient` on `global.prismaGlobal` in development, and the long-running dev server's cached client instance predated the `ProjectMutation` model (added in Unit 09), so `prisma.projectMutation` was `undefined` on the stale instance. Since `getIdempotentResponse()` was called before `PATCH`/`DELETE`'s `try` block, the resulting `TypeError` was uncaught. Fixed by moving the `getIdempotentResponse()` calls inside the existing `try` blocks in `app/api/projects/[projectId]/route.ts` (so any future DB/client hiccup returns a proper `500` via `internalError()` instead of crashing the request) and restarting the dev server to pick up the current generated client. `context/current-issues.md` cleared.
+
+### Feature Unit 12: Shape Panel
+
+- Added `SHAPE_DEFAULT_SIZES` (per-shape default `width`/`height`, wider-than-tall rectangles/pills, square circles, an enlarged diamond) and `MIN_NODE_DIMENSION`/`MAX_NODE_DIMENSION` (40/600) to `types/canvas.ts`, shared between the drag payload and the drop handler's clamping.
+- Added `components/editor/shape-panel.tsx`: a floating pill-shaped toolbar (`ShapePanel`) fixed bottom-center over the canvas, with one draggable icon button per `CanvasNodeShape` (lucide `Square`/`Diamond`/`Circle`/`Pill`/`Cylinder`/`Hexagon`). Drag payload is set on a dedicated MIME type (`SHAPE_DRAG_MIME_TYPE = "application/x-ghostai-shape"`, exported for the canvas drop handler) as `{ shape, size }` JSON, so the canvas only reads a payload it recognizes rather than parsing arbitrary `DataTransfer` content.
+- Added `components/editor/canvas-node.tsx` (`CanvasNodeRenderer`): the `canvasNode` type's renderer for this unit — a bordered rectangle in the node's `color`/`textColor` with the centered label and four hover-revealed connection handles (top/right/bottom/left). Shape-specific visuals are out of scope per spec and deferred to a later unit.
+- Updated `components/editor/canvas.tsx`: registered `nodeTypes={{ canvasNode: CanvasNodeRenderer }}` on `ReactFlow`; wrapped `CanvasFlow` in `ReactFlowProvider` (previously absent — needed so `useReactFlow().screenToFlowPosition` is available for the drop handler) and rendered `ShapePanel` alongside `ReactFlow` inside a shared relatively-positioned wrapper carrying the `dragover`/`drop` handlers.
+- Drop handling: `handleDragOver` only calls `preventDefault` when the drag carries the app's own MIME type (so unrelated OS/browser drags are ignored); `handleDrop` reads that MIME type's payload, parses it defensively (`parseShapeDragPayload` — rejects non-JSON, non-object payloads, and any shape not in `NODE_SHAPES`), clamps `width`/`height` to finite values within `[MIN_NODE_DIMENSION, MAX_NODE_DIMENSION]` via `clampDimension`, converts the drop's screen position to canvas coordinates with `screenToFlowPosition`, and only then constructs the new node.
+- New nodes: `id` from `crypto.randomUUID()`, `type: "canvasNode"`, empty `label`, `DEFAULT_NODE_COLOR` fill/text, the dragged shape stored in `data.shape`, and `width`/`height` from the (clamped) drag payload. Added collaboratively via `onNodesChange([{ type: "add", item: newNode }])` — the same Liveblocks-synced change handler used for all other node changes, so no separate mutation path was introduced.
 - Verified `npm run build` and `npm run lint` pass.
 
 ## In Progress
@@ -105,7 +137,9 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Next Up
 
-- Wire the canvas placeholder in `components/editor/workspace-shell.tsx` to real Liveblocks + React Flow state.
+- Add shape-specific visuals (diamond/hexagon/cylinder as inline SVGs per `context/ui-context.md`) to `CanvasNodeRenderer`, plus inline label editing and color selection for `canvasNode`.
+- Add custom edge rendering for `canvasEdge` (smooth-step path, arrow marker, label).
+- Add canvas controls and persistence (Vercel Blob snapshots per `context/architecture-context.md`).
 - Implement the AI sidebar placeholder's real chat behavior.
 - Continue with the next editor feature unit.
 
@@ -119,5 +153,5 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Session Notes
 
-- Last completed implementation unit: context/feature-specs/09-share-dialog.md
-- Unit status: completed; owners can invite/remove collaborators and copy the project link from the share dialog, collaborators get read-only access, and names/avatars are enriched live from Clerk. `npm run build` and `npm run lint` pass.
+- Last completed implementation unit: context/feature-specs/12-shape-panel.md
+- Unit status: completed; a bottom-center `ShapePanel` lets users drag one of six shapes onto the canvas, `canvas.tsx`'s `dragover`/`drop` handlers validate the payload and clamp node size before creating a node via `onNodesChange([{ type: "add", item }])`, and `CanvasNodeRenderer` renders new `canvasNode`s as a bordered rectangle. `npm run build` and `npm run lint` pass. `LIVEBLOCKS_SECRET_KEY` in `.env.local` has been supplied with a real secret key and verified working.

@@ -37,6 +37,7 @@ export function ShareDialog({ isOpen, isOwner, onOpenChange, projectId, projectN
   const [isCopied, setIsCopied] = useState(false)
   const [copyError, setCopyError] = useState<string | null>(null)
   const copyResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const copyRequestIdRef = useRef(0)
 
   useEffect(() => {
     return () => {
@@ -45,13 +46,6 @@ export function ShareDialog({ isOpen, isOwner, onOpenChange, projectId, projectN
       }
     }
   }, [])
-
-  useEffect(() => {
-    if (!isOpen) {
-      setCopyError(null)
-      setEmail("")
-    }
-  }, [isOpen])
 
   async function handleInvite(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -69,22 +63,54 @@ export function ShareDialog({ isOpen, isOwner, onOpenChange, projectId, projectN
 
   async function handleCopyLink() {
     const link = `${window.location.origin}/editor/${projectId}`
+    copyRequestIdRef.current += 1
+    const currentRequestId = copyRequestIdRef.current
 
     try {
       await navigator.clipboard.writeText(link)
+      if (copyRequestIdRef.current !== currentRequestId) {
+        return
+      }
       setCopyError(null)
       setIsCopied(true)
       if (copyResetTimeoutRef.current) {
         clearTimeout(copyResetTimeoutRef.current)
       }
-      copyResetTimeoutRef.current = setTimeout(() => setIsCopied(false), 2000)
+      copyResetTimeoutRef.current = setTimeout(() => {
+        if (copyRequestIdRef.current === currentRequestId) {
+          setIsCopied(false)
+        }
+      }, 2000)
     } catch {
+      if (copyRequestIdRef.current !== currentRequestId) {
+        return
+      }
+      if (copyResetTimeoutRef.current) {
+        clearTimeout(copyResetTimeoutRef.current)
+        copyResetTimeoutRef.current = null
+      }
+      setIsCopied(false)
       setCopyError("Could not copy the project link.")
     }
   }
 
+  function handleOpenChange(nextIsOpen: boolean) {
+    if (!nextIsOpen) {
+      copyRequestIdRef.current += 1
+      if (copyResetTimeoutRef.current) {
+        clearTimeout(copyResetTimeoutRef.current)
+        copyResetTimeoutRef.current = null
+      }
+      setCopyError(null)
+      setEmail("")
+      setIsCopied(false)
+    }
+
+    onOpenChange(nextIsOpen)
+  }
+
   return (
-    <Dialog onOpenChange={onOpenChange} open={isOpen}>
+    <Dialog onOpenChange={handleOpenChange} open={isOpen}>
       <DialogContent className="rounded-3xl bg-surface p-6">
         <DialogHeader>
           <DialogTitle>Share {projectName}</DialogTitle>
@@ -116,6 +142,7 @@ export function ShareDialog({ isOpen, isOwner, onOpenChange, projectId, projectN
             {error}
           </p>
         ) : null}
+
         {copyError ? (
           <p className="text-sm text-destructive" role="alert">
             {copyError}
