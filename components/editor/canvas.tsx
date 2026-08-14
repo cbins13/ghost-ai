@@ -1,23 +1,41 @@
 "use client"
 
-import { Component, createContext, useCallback, useContext, type DragEvent, type ReactNode } from "react"
-import { ClientSideSuspense, LiveblocksProvider, RoomProvider } from "@liveblocks/react"
+import { Component, createContext, useCallback, useContext, useState, type DragEvent, type ReactNode } from "react"
+import {
+  ClientSideSuspense,
+  LiveblocksProvider,
+  RoomProvider,
+  useCanRedo,
+  useCanUndo,
+  useRedo,
+  useRoom,
+  useUndo,
+} from "@liveblocks/react"
 import { useLiveblocksFlow } from "@liveblocks/react-flow"
 import {
   Background,
   BackgroundVariant,
   ConnectionMode,
+  MarkerType,
   MiniMap,
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
+  type DefaultEdgeOptions,
+  type EdgeTypes,
   type NodeTypes,
 } from "@xyflow/react"
 
 import "@xyflow/react/dist/style.css"
 
+import { CanvasControlBar } from "@/components/editor/canvas-control-bar"
+import { CanvasEdgeRenderer, EDGE_COLOR } from "@/components/editor/canvas-edge"
 import { CanvasNodeRenderer } from "@/components/editor/canvas-node"
 import { SHAPE_DRAG_MIME_TYPE, ShapePanel } from "@/components/editor/shape-panel"
+import { resolveTemplateColor, type CanvasTemplate } from "@/components/editor/starter-templates"
+import { StarterTemplatesImportDialog } from "@/components/editor/starter-templates-import-dialog"
+import { StarterTemplatesModal } from "@/components/editor/starter-templates-modal"
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import {
   DEFAULT_NODE_COLOR,
   MAX_NODE_DIMENSION,
@@ -26,15 +44,27 @@ import {
   SHAPE_DEFAULT_SIZES,
   type CanvasEdge,
   type CanvasNode,
+  type CanvasNodeColor,
   type CanvasNodeShape,
 } from "@/types/canvas"
 
 interface CanvasProps {
   roomId: string
+  isTemplatesModalOpen: boolean
+  onTemplatesModalOpenChange: (open: boolean) => void
 }
 
 const nodeTypes: NodeTypes = {
   canvasNode: CanvasNodeRenderer,
+}
+
+const edgeTypes: EdgeTypes = {
+  canvasEdge: CanvasEdgeRenderer,
+}
+
+const defaultEdgeOptions: DefaultEdgeOptions = {
+  type: "canvasEdge",
+  markerEnd: { type: MarkerType.ArrowClosed, color: EDGE_COLOR },
 }
 
 function CanvasLoading() {
@@ -81,6 +111,9 @@ function isCanvasNodeShape(value: unknown): value is CanvasNodeShape {
 
 interface CanvasActionsContextValue {
   createNodeAtCenter: (shape: CanvasNodeShape) => void
+  updateNodeLabel: (nodeId: string, label: string) => void
+  updateNodeColor: (nodeId: string, color: CanvasNodeColor) => void
+  updateEdgeLabel: (edgeId: string, label?: string) => void
 }
 
 const CanvasActionsContext = createContext<CanvasActionsContextValue | null>(null)
@@ -148,7 +181,24 @@ function parseShapeDragPayload(raw: string): ShapeDragPayload | null {
   }
 }
 
-function CanvasFlow() {
+function snapshotSignature(nodes: CanvasNode[], edges: CanvasEdge[]): string {
+  const nodeSignature = nodes
+    .map((n) => `${n.id}:${n.position.x},${n.position.y}:${JSON.stringify(n.data)}`)
+    .sort()
+    .join("|")
+  const edgeSignature = edges
+    .map((e) => `${e.id}:${e.source}-${e.target}:${JSON.stringify(e.data)}`)
+    .sort()
+    .join("|")
+  return `${nodeSignature}::${edgeSignature}`
+}
+
+interface CanvasFlowProps {
+  isTemplatesModalOpen: boolean
+  onTemplatesModalOpenChange: (open: boolean) => void
+}
+
+function CanvasFlow({ isTemplatesModalOpen, onTemplatesModalOpenChange }: Readonly<CanvasFlowProps>) {
   const { nodes, edges, onNodesChange, onEdgesChange, onConnect, onDelete } = useLiveblocksFlow<
     CanvasNode,
     CanvasEdge
@@ -157,7 +207,106 @@ function CanvasFlow() {
     edges: { initial: [] },
     suspense: true,
   })
-  const { screenToFlowPosition, getViewport } = useReactFlow<CanvasNode>()
+  const reactFlowInstance = useReactFlow<CanvasNode>()
+  const { screenToFlowPosition, getViewport, fitView } = reactFlowInstance
+  const room = useRoom()
+  const undo = useUndo()
+  const redo = useRedo()
+  const canUndo = useCanUndo()
+  const canRedo = useCanRedo()
+
+  const [pendingTemplate, setPendingTemplate] = useState<CanvasTemplate | null>(null)
+  const [pendingSnapshot, setPendingSnapshot] = useState<string | null>(null)
+  const [hasConflict, setHasConflict] = useState(false)
+
+  const applyTemplate = useCallback(
+    (template: CanvasTemplate) => {
+      const idMap = new Map(template.nodes.map((templateNode) => [templateNode.id, crypto.randomUUID()]))
+
+      const newNodes: CanvasNode[] = template.nodes.map((templateNode) => {
+        const color = resolveTemplateColor(templateNode.color)
+        const size = templateNode.size ?? SHAPE_DEFAULT_SIZES[templateNode.shape]
+        return {
+          id: idMap.get(templateNode.id)!,
+          type: "canvasNode",
+          position: templateNode.position,
+          width: size.width,
+          height: size.height,
+          data: {
+            label: templateNode.label,
+            color: color.fill,
+            textColor: color.text,
+            shape: templateNode.shape,
+          },
+        }
+      })
+
+      const newEdges: CanvasEdge[] = template.edges.map((templateEdge) => ({
+        id: crypto.randomUUID(),
+        type: "canvasEdge",
+        source: idMap.get(templateEdge.source)!,
+        target: idMap.get(templateEdge.target)!,
+        data: { label: templateEdge.label },
+      }))
+
+      room.batch(() => {
+        onNodesChange([
+          ...nodes.map((existing) => ({ type: "remove" as const, id: existing.id })),
+          ...newNodes.map((item) => ({ type: "add" as const, item })),
+        ])
+        onEdgesChange([
+          ...edges.map((existing) => ({ type: "remove" as const, id: existing.id })),
+          ...newEdges.map((item) => ({ type: "add" as const, item })),
+        ])
+      })
+
+      window.requestAnimationFrame(() => fitView({ duration: 200 }))
+    },
+    [edges, fitView, nodes, onEdgesChange, onNodesChange, room]
+  )
+
+  const requestImport = useCallback(
+    (template: CanvasTemplate) => {
+      if (nodes.length === 0 && edges.length === 0) {
+        applyTemplate(template)
+        return
+      }
+
+      setPendingTemplate(template)
+      setPendingSnapshot(snapshotSignature(nodes, edges))
+      setHasConflict(false)
+    },
+    [applyTemplate, edges, nodes]
+  )
+
+  const confirmImport = useCallback(() => {
+    if (!pendingTemplate) {
+      return
+    }
+
+    if (snapshotSignature(nodes, edges) !== pendingSnapshot) {
+      setHasConflict(true)
+      return
+    }
+
+    applyTemplate(pendingTemplate)
+    setPendingTemplate(null)
+    setPendingSnapshot(null)
+    setHasConflict(false)
+  }, [applyTemplate, edges, nodes, pendingSnapshot, pendingTemplate])
+
+  const retryImport = useCallback(() => {
+    setPendingSnapshot(snapshotSignature(nodes, edges))
+    setHasConflict(false)
+  }, [edges, nodes])
+
+  const cancelImport = useCallback(() => {
+    setPendingTemplate(null)
+    setPendingSnapshot(null)
+    setHasConflict(false)
+  }, [])
+
+  useKeyboardShortcuts({ reactFlowInstance, onUndo: undo, onRedo: redo })
 
   const handleDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
     if (!event.dataTransfer.types.includes(SHAPE_DRAG_MIME_TYPE)) {
@@ -240,14 +389,64 @@ function CanvasFlow() {
     [onNodesChange, screenToFlowPosition],
   )
 
-  const canvasActions = useCallback(() => ({ createNodeAtCenter }), [createNodeAtCenter])
+  const updateNodeLabel = useCallback(
+    (nodeId: string, label: string) => {
+      const node = nodes.find((candidate) => candidate.id === nodeId)
+
+      if (!node) {
+        return
+      }
+
+      onNodesChange([{ type: "replace", id: nodeId, item: { ...node, data: { ...node.data, label } } }])
+    },
+    [nodes, onNodesChange],
+  )
+
+  const updateNodeColor = useCallback(
+    (nodeId: string, color: CanvasNodeColor) => {
+      const node = nodes.find((candidate) => candidate.id === nodeId)
+
+      if (!node) {
+        return
+      }
+
+      onNodesChange([
+        {
+          type: "replace",
+          id: nodeId,
+          item: { ...node, data: { ...node.data, color: color.fill, textColor: color.text } },
+        },
+      ])
+    },
+    [nodes, onNodesChange],
+  )
+
+  const updateEdgeLabel = useCallback(
+    (edgeId: string, label?: string) => {
+      const edge = edges.find((candidate) => candidate.id === edgeId)
+
+      if (!edge) {
+        return
+      }
+
+      onEdgesChange([{ type: "replace", id: edgeId, item: { ...edge, data: { ...edge.data, label } } }])
+    },
+    [edges, onEdgesChange],
+  )
+
+  const canvasActions = useCallback(
+    () => ({ createNodeAtCenter, updateNodeLabel, updateNodeColor, updateEdgeLabel }),
+    [createNodeAtCenter, updateNodeLabel, updateNodeColor, updateEdgeLabel],
+  )
 
   return (
     <CanvasActionsContext.Provider value={canvasActions()}>
       <div className="relative flex flex-1" onDragOver={handleDragOver} onDrop={handleDrop}>
         <ReactFlow
           connectionMode={ConnectionMode.Loose}
+          defaultEdgeOptions={defaultEdgeOptions}
           edges={edges}
+          edgeTypes={edgeTypes}
           fitView
           nodes={nodes}
           nodeTypes={nodeTypes}
@@ -260,19 +459,41 @@ function CanvasFlow() {
           <MiniMap />
         </ReactFlow>
         <ShapePanel />
+        <CanvasControlBar
+          canRedo={canRedo}
+          canUndo={canUndo}
+          onRedo={redo}
+          onUndo={undo}
+          reactFlowInstance={reactFlowInstance}
+        />
       </div>
+      <StarterTemplatesModal
+        isOpen={isTemplatesModalOpen}
+        onImport={requestImport}
+        onOpenChange={onTemplatesModalOpenChange}
+      />
+      <StarterTemplatesImportDialog
+        hasConflict={hasConflict}
+        onCancel={cancelImport}
+        onConfirm={confirmImport}
+        onRetry={retryImport}
+        template={pendingTemplate}
+      />
     </CanvasActionsContext.Provider>
   )
 }
 
-export function Canvas({ roomId }: Readonly<CanvasProps>) {
+export function Canvas({ roomId, isTemplatesModalOpen, onTemplatesModalOpenChange }: Readonly<CanvasProps>) {
   return (
     <CanvasErrorBoundary>
       <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
         <RoomProvider id={roomId} initialPresence={{ cursor: null, isThinking: false }}>
           <ClientSideSuspense fallback={<CanvasLoading />}>
             <ReactFlowProvider>
-              <CanvasFlow />
+              <CanvasFlow
+                isTemplatesModalOpen={isTemplatesModalOpen}
+                onTemplatesModalOpenChange={onTemplatesModalOpenChange}
+              />
             </ReactFlowProvider>
           </ClientSideSuspense>
         </RoomProvider>

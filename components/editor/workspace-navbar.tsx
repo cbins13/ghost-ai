@@ -1,7 +1,7 @@
 "use client"
 
 import { UserButton } from "@clerk/nextjs"
-import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Share2 } from "lucide-react"
+import { LayoutTemplate, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Share2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 
@@ -11,6 +11,7 @@ interface WorkspaceNavbarProps {
   onAiSidebarToggle: () => void
   onShareClick: () => void
   onSidebarToggle: () => void
+  onTemplatesClick: () => void
   projectName: string
   sidebarToggleRef?: React.RefObject<HTMLButtonElement | null>
 }
@@ -21,6 +22,7 @@ export function WorkspaceNavbar({
   onAiSidebarToggle,
   onShareClick,
   onSidebarToggle,
+  onTemplatesClick,
   projectName,
   sidebarToggleRef,
 }: Readonly<WorkspaceNavbarProps>) {
@@ -44,6 +46,10 @@ export function WorkspaceNavbar({
         <span className="truncate text-sm font-medium text-copy-primary">{projectName}</span>
       </div>
       <div className="flex flex-1 items-center justify-end gap-1">
+        <Button onClick={onTemplatesClick} size="sm" variant="outline">
+          <LayoutTemplate className="h-4 w-4" />
+          Templates
+        </Button>
         <Button onClick={onShareClick} size="sm" variant="outline">
           <Share2 className="h-4 w-4" />
           Share
