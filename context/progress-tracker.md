@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Completed: Feature Unit 18
+- Completed: Feature Unit 21
 
 ## Current Goal
 
-- Build custom node/edge rendering and canvas controls on top of the collaborative canvas foundation.
+- Flesh out the AI sidebar into a functional AI Architect assistant backed by real chat/spec-generation logic.
 
 ## Completed
 
@@ -183,14 +183,56 @@ Update this file whenever the current phase, active feature, or implementation s
 - No template saving, custom user templates, or server persistence added — importing only replaces in-memory/Liveblocks-synced canvas state, per spec scope.
 - Verified `npm run build` and `npm run lint` pass (only the pre-existing Unit 14 `viewport` unused-var warning in `canvas.tsx` remains).
 
+### Feature Unit 19: Presence Avatars & Live Cursors
+
+- Renamed the `Presence.isThinking` field to `thinking` in `liveblocks.config.ts` to match the spec's exact presence shape, and updated `RoomProvider`'s `initialPresence` in `components/editor/canvas.tsx` accordingly. `UserMeta.info` (`name`, `avatar`, `color`) was already populated in `app/api/liveblocks-auth/route.ts` from Unit 10, so no changes were needed there.
+- Added `components/editor/presence-avatars.tsx` (`PresenceAvatars`): a floating pill fixed top-right inside the canvas view (not the navbar), reading `useOthers()` and filtering out any entry whose `id` matches the current Clerk user (`useUser()`). Renders up to 5 collaborator avatars in an overlapping stack (`-space-x-2`), a `+N` overflow chip beyond that, a divider shown only when collaborators exist, and the existing Clerk `UserButton` sized to match via `appearance.elements.avatarBox`. Collaborator avatars use the profile photo from presence `info.avatar` with a `border-2 border-surface` ring, falling back to a colored initial circle; display-only, no click handlers.
+- Added `components/editor/live-cursors.tsx` (`LiveCursors`): reads `useOthers()`, skips any participant with a `null` presence cursor, and converts each remaining flow-space `{x,y}` back to screen coordinates via the passed-in React Flow instance's `flowToScreenPosition` (never mixing viewport/flow coordinates). Renders a `lucide-react` `MousePointer2` pointer plus a name badge, both colored from `info.color`.
+- Updated `components/editor/canvas.tsx` (`CanvasFlow`): added `onMouseMove`/`onMouseLeave` handlers on the existing ReactFlow wrapper div, converting pointer position with `screenToFlowPosition` and broadcasting via `useUpdateMyPresence()` (`cursor: {x,y}` on move, `cursor: null` on leave). Rendered `PresenceAvatars` and `LiveCursors` as siblings of `ReactFlow` inside the same relatively-positioned wrapper (so `flowToScreenPosition`'s viewport-relative output aligns with the pane's origin).
+- No changes to the shared workspace navbar, node/edge behavior, or Clerk profile/logout behavior — presence UI only renders inside the canvas view, per spec scope.
+- Verified `npm run build` passes.
+
+### Feature Unit 20: AI Sidebar Shell
+
+- Added `components/editor/ai-sidebar.tsx` (`AiSidebar`): extracted the AI sidebar out of `workspace-shell.tsx` into its own component, keeping the parent-controlled `isOpen`/`onClose` contract and the existing floating position, slide-in transform, border, and shadow treatment (updated the surface fill to `bg-base/95` per spec, previously `bg-surface/95`).
+- Header: small `Bot` icon in a rounded chip, `AI Workspace` title (`text-copy-primary`) / `Collaborate with Ghost AI` subtitle (`text-copy-muted`), and a right-aligned icon close button.
+- Added a shadcn `Tabs` layout with `AI Architect` and `Specs` tabs; active tab uses the AI accent tokens (`bg-ai/15 text-ai-text`) since the spec's literal `bg-accent`/`text-accent` names resolve to shadcn's generic muted-gray tokens, not the app's AI/brand accent — mapped spec color names to the closest actual token per `ui-context.md` (e.g. `text-accent-text` → `text-ai-text`, `bg-brand-dim`/`border-brand/50` → `bg-accent-dim border-brand/50`, `text-primary-text`/`text-muted-text` → `text-copy-primary`/`text-copy-muted`).
+- AI Architect tab: scrollable message list with an empty state (bot icon, description, three starter chips styled as `bg-surface-subtle text-ai-text` pills that populate a message on click), right-aligned user bubbles (`bg-accent-dim border-2 border-brand/50 text-copy-primary`), left-aligned assistant-styled bubbles (`bg-surface-elevated border border-surface-border text-ai-text`), and an auto-growing `Textarea` (`min-h-[72px] max-h-40`, shadcn `field-sizing-content`) with `Enter` to submit / `Shift+Enter` for a newline, plus an accent send button.
+- Specs tab: `Generate Spec` button (`bg-ai text-white`) and a static demo spec card (`bg-surface-elevated border-surface-border`) with a file icon, title, snippet, and a disabled `Download` button.
+- Chat state is local component state only — sending a starter chip or typed message appends a user bubble with no assistant reply, backend call, or Liveblocks/AI wiring, per the unit's scope limits.
+- Updated `components/editor/workspace-shell.tsx` to render `<AiSidebar isOpen={isAiSidebarOpen} onClose={...} />` in place of the inline placeholder `<aside>`; removed the now-unused `cn` import.
+- Verified `npm run build` passes.
+
+### Feature Unit 21: Canvas Autosave
+
+- Installed `@vercel/blob` and added `canvasRevision Int @default(0)` to `prisma/models/project.prisma` (migration `20260814081034_add_canvas_revision`); `canvasJsonPath` (added in Unit 05) is reused as the trusted private Blob pathname reference — Prisma stays metadata-only per the spec's storage pattern.
+- Added `lib/canvas-storage.ts`: `CanvasState` (`{ nodes: CanvasNode[]; edges: CanvasEdge[] }`), `writeCanvasBlob(projectId, revision, canvas)` (writes to `canvas/{projectId}/{revision}.json`, `access: "private"`, `allowOverwrite: true`) and `readCanvasBlob(pathname)` (`get(pathname, { access: "private" })`, reads the response `stream` directly via `new Response(stream).json()` rather than fetching `downloadUrl`, since the route must never expose a Blob URL to the client per spec). Revision-suffixed pathnames (not a single overwritten `canvas/{projectId}.json`) so a losing writer in the compare-and-set below can never clobber a winner's already-uploaded blob content — only the Prisma reference/revision pointer is swapped atomically.
+- Added `lib/canvas-validation.ts#parseCanvasState`: validates untrusted request bodies at the API boundary (node `id`/`type: "canvasNode"`/numeric `position`/object `data`; edge `id`/`type: "canvasEdge"`/string `source`/`target`) before anything is written to Blob or Prisma, per `code-standards.md`'s "validate unknown external input at system boundaries."
+- Added `app/api/projects/[projectId]/canvas/route.ts`: both `GET` and `PUT` require `getCurrentIdentity()` (`401` if absent) and `getProjectWithAccess()` (`403` if the project is missing or the caller isn't the owner/a collaborator), matching the spec's explicit `401`/`403` contract rather than the rest of the app's indistinguishable-`404` convention. `GET` reads `canvasJsonPath`/`canvasRevision` from Prisma and returns only `{ canvas, revision }` (empty canvas state if never saved) — never the Blob URL/key. `PUT` validates the body, uploads to a new revision-suffixed blob, then does the compare-and-set via `prisma.project.updateMany({ where: { id, canvasRevision: clientRevision }, data: { canvasJsonPath, canvasRevision: clientRevision + 1 } })`; `count === 0` means a concurrent writer already advanced the revision, so it re-reads the authoritative row/blob and returns `409` with `{ canvas, revision }` instead of applying the stale write.
+- Added `hooks/use-canvas-autosave.ts#useCanvasAutosave`: debounces (1500ms) on `nodes`/`edges` changes, tracks the last-synced revision in a ref (seeded from `initialRevision`, only becomes save-eligible once the initial load below completes), and PUTs `{ canvas: { nodes, edges }, revision }` on each fire. A `do...while(hasPendingSaveRef.current)` loop inside the single `save` callback (rather than the callback recursively calling itself) coalesces any save requests that arrive while a request is in flight, since a naive self-recursive call broke React Compiler's memoization analysis (`react-hooks/preserve-manual-memoization` build error). On `409`, updates the revision ref to the authoritative value and calls `onReconcile(canvas)` instead of retrying with the stale payload — the next natural debounce cycle picks up whatever `onReconcile` puts into the Liveblocks-synced state. Returns `{ status: "idle" | "saving" | "saved" | "error" }`.
+- Updated `components/editor/canvas.tsx` (`CanvasFlow`): added a mount-once effect (`hasAttemptedLoadRef`) that `GET`s the saved canvas, then applies it only if the room is still empty **at the moment the fetch resolves** (checked against `nodesRef`/`edgesRef`, refs kept in sync via a separate effect rather than mutated during render, since the latter breaks React Compiler's `react-hooks/refs` rule) — not at the time the fetch was issued. This narrows but does not eliminate the race the spec describes; there is no true server-side atomic "apply only if room is still empty" primitive available given this app's Liveblocks/`useLiveblocksFlow` setup (same constraint noted for Unit 18's template-import conflict detection, which also re-checks live state at apply time rather than using a real storage revision counter). Added `replaceCanvasState(canvas)` (remove-all + add-all via `room.batch()`, mirroring Unit 18's `applyTemplate`) shared by both the initial-load path and the autosave hook's `onReconcile`. Wired `useCanvasAutosave` and forwarded its `status` to a new required `onSaveStatusChange` prop threaded through `Canvas` → `CanvasFlow`.
+- Updated `components/editor/workspace-shell.tsx`: added `saveStatus` state (`CanvasSaveStatus`, from the new hook's export), passed to `Canvas` as `onSaveStatusChange={setSaveStatus}` and to `WorkspaceNavbar` as `saveStatus`.
+- Updated `components/editor/workspace-navbar.tsx`: added a disabled Save button (spec calls for a status indicator "in the editor Save button" — there was no existing Save button, so one was added) showing an icon (`Save`/`Loader2` spinning/`Check`/`AlertCircle`) and label (`Save`/`Saving…`/`Saved`/`Error saving`) per `CanvasSaveStatus`. Success/error colors use the existing `text-brand`/`text-destructive` token utilities rather than new raw hex, since `globals.css` has no dedicated success/error Tailwind utility beyond `--color-destructive`.
+- Verified `npm run build` and `npm run lint` pass (only the pre-existing Unit 14 `viewport` unused-var warning in `canvas.tsx` remains).
+
+### Bugfix Round: context/current-issues.md
+
+- Save button + blob route (`access: "private"`, Blob SDK `get()` in `readCanvasBlob`) were already correct from Unit 21 — no changes needed.
+- Node connection handles (all four positions, no CSS hiding non-top handles) were already correct from Unit 12/13 — no changes needed.
+- Drag-and-drop position offset was already correct: the shape panel's custom drag preview (`shape-panel.tsx`) always centers itself on the cursor regardless of grab point, so `screenToFlowPosition` + centering in `canvas.tsx`'s `handleDrop` already places the node center exactly under the cursor. No "grab offset" exists to correct for.
+- Fixed delete key handling: added a `window` `keydown` listener in `components/editor/canvas.tsx` (`CanvasFlow`) that ignores input/textarea/contenteditable targets, reads currently-selected nodes/edges via `useNodes()`/`useEdges()`, and calls `useLiveblocksFlow`'s `onDelete({ nodes, edges })` directly. Set `deleteKeyCode={null}` on `ReactFlow` and removed the `onDelete` prop passed to it, so React Flow's built-in keyboard deletion no longer fires — all deletions now go through the explicit listener.
+- Fixed auto-zoom-on-first-drop: removed the `fitView` boolean prop from `<ReactFlow>` (its internal behavior re-fits whenever the node set transitions from empty to non-empty, which fired on every first shape drop). Replaced it with a manual one-time `fitView({ duration: 0 })` call inside the existing "load saved canvas on mount" effect, guarded the same way as the state replacement (`isRoomStillEmpty && hasSavedContent`), so the viewport still fits previously-saved content on room join but never auto-zooms during a live drop.
+- Fixed `img.clerk.com` avatar image error: added `images.remotePatterns` (`https`, `img.clerk.com`) to `next.config.ts`, which previously had an empty config.
+- Removed `UserButton` from `components/editor/workspace-navbar.tsx`. Note: `workspace-navbar.tsx` and `editor-navbar.tsx` (used on editor home) are already two separate components, not one shared component — so there was no conditional-rendering branch to add; the `UserButton` import/usage was simply deleted from the workspace navbar, leaving `editor-navbar.tsx`'s `UserButton` untouched.
+- Verified `npm run build` passes after all fixes.
+
 ## In Progress
 
 - None.
 
 ## Next Up
 
-- Add canvas persistence (Vercel Blob snapshots per `context/architecture-context.md`).
-- Implement the AI sidebar placeholder's real chat behavior.
+- Wire the AI sidebar's chat and spec generation to a real backend/AI provider.
 - Continue with the next editor feature unit.
 
 ## Open Questions
@@ -203,7 +245,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Session Notes
 
-- Last completed implementation unit: context/feature-specs/18-starter-templates.md
-- Unit status: completed; navbar "Templates" button opens a modal of three predefined templates with lightweight previews, importing replaces the canvas atomically via `room.batch()` around a single `onNodesChange`/`onEdgesChange` call pair (one undo entry). Non-empty canvases require confirmation; a signature comparison at confirm time detects collaborator edits made while the dialog was open and surfaces a conflict state requiring explicit "Refresh & Retry" instead of silently overwriting. `npm run build` and `npm run lint` pass.
+- Last completed implementation unit: context/feature-specs/21-canvas-autosave.md
+- Unit status: completed; canvas JSON now round-trips through private Vercel Blob with Prisma tracking only a pathname + revision, `PUT`/`GET /api/projects/[projectId]/canvas`, a debounced autosave hook with 409-triggered reconciliation, load-once-if-empty on room join, and a Save status indicator in the navbar. `npm run build` and `npm run lint` pass.
+- Previous unit: context/feature-specs/20-ai-sidebar-shell.md
+- Unit status: completed; AI sidebar split into `components/editor/ai-sidebar.tsx` with header, `AI Architect`/`Specs` tabs, chat empty state + starter chips + auto-resizing input, and a static Specs demo card. No backend/AI wiring. `npm run build` passes.
+- Previous unit: context/feature-specs/19-presence-avatars-cursor.md — collaborator avatar stack + Clerk `UserButton` top-right in the canvas view, live remote cursors converted between flow/screen space via the React Flow instance, and the shared `Presence.thinking` field renamed to match spec. `npm run build` passes.
+- Previous unit: context/feature-specs/18-starter-templates.md — navbar "Templates" button opens a modal of three predefined templates with lightweight previews, importing replaces the canvas atomically via `room.batch()` around a single `onNodesChange`/`onEdgesChange` call pair (one undo entry). Non-empty canvases require confirmation; a signature comparison at confirm time detects collaborator edits made while the dialog was open and surfaces a conflict state requiring explicit "Refresh & Retry" instead of silently overwriting.
 - Design note: Liveblocks' `useLiveblocksFlow`/room APIs don't expose a numeric storage revision counter, so conflict detection uses a deep signature of the current nodes/edges (sorted id+position/source-target+data) captured when the confirm dialog opens, compared again at confirm time — functionally equivalent optimistic-concurrency check without a literal revision number.
 - `LIVEBLOCKS_SECRET_KEY` in `.env.local` has been supplied with a real secret key and verified working.

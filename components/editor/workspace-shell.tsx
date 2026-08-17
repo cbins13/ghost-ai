@@ -3,14 +3,15 @@
 import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 
+import { AiSidebar } from "@/components/editor/ai-sidebar"
 import { Canvas } from "@/components/editor/canvas"
 import { ProjectDialogs } from "@/components/editor/project-dialogs"
 import { ProjectSidebar } from "@/components/editor/project-sidebar"
 import { ShareDialog } from "@/components/editor/share-dialog"
 import { WorkspaceNavbar } from "@/components/editor/workspace-navbar"
+import type { CanvasSaveStatus } from "@/hooks/use-canvas-autosave"
 import { useProjectActions, type ProjectSummary } from "@/hooks/use-project-actions"
 import { type ProjectDto } from "@/lib/projects"
-import { cn } from "@/lib/utils"
 
 interface WorkspaceShellProps {
   activeProjectId: string
@@ -32,7 +33,9 @@ export function WorkspaceShell({
   const [isAiSidebarOpen, setIsAiSidebarOpen] = useState(false)
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false)
   const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<CanvasSaveStatus>("idle")
   const sidebarToggleRef = useRef<HTMLButtonElement>(null)
+  const saveRequestRef = useRef<(() => void) | null>(null)
   const projectActions = useProjectActions({ activeProjectId })
 
   function openProject(projectId: string) {
@@ -50,10 +53,12 @@ export function WorkspaceShell({
         isAiSidebarOpen={isAiSidebarOpen}
         isSidebarOpen={isSidebarOpen}
         onAiSidebarToggle={() => setIsAiSidebarOpen((isOpen) => !isOpen)}
+        onSaveClick={() => saveRequestRef.current?.()}
         onShareClick={() => setIsShareDialogOpen(true)}
         onSidebarToggle={() => setIsSidebarOpen((isOpen) => !isOpen)}
         onTemplatesClick={() => setIsTemplatesModalOpen(true)}
         projectName={project.name}
+        saveStatus={saveStatus}
         sidebarToggleRef={sidebarToggleRef}
       />
       <div className="flex flex-1 overflow-hidden">
@@ -72,23 +77,15 @@ export function WorkspaceShell({
         <section aria-label="Canvas" className="flex flex-1 bg-base">
           <Canvas
             isTemplatesModalOpen={isTemplatesModalOpen}
+            onSaveRequestReady={(save) => {
+              saveRequestRef.current = save
+            }}
+            onSaveStatusChange={setSaveStatus}
             onTemplatesModalOpenChange={setIsTemplatesModalOpen}
             roomId={activeProjectId}
           />
         </section>
-        <aside
-          aria-hidden={!isAiSidebarOpen}
-          aria-label="AI assistant"
-          className={cn(
-            "fixed top-[4.5rem] right-4 bottom-4 z-20 hidden w-80 flex-col rounded-2xl border border-surface-border bg-surface/95 shadow-2xl backdrop-blur transition-transform duration-200 md:flex",
-            isAiSidebarOpen ? "translate-x-0" : "translate-x-[calc(100%+1.5rem)]"
-          )}
-          inert={!isAiSidebarOpen}
-        >
-          <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-copy-muted">
-            AI chat coming soon
-          </div>
-        </aside>
+        <AiSidebar isOpen={isAiSidebarOpen} onClose={() => setIsAiSidebarOpen(false)} />
       </div>
       <ProjectDialogs
         activeDialog={projectActions.activeDialog}
