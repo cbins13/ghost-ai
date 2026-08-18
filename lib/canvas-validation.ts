@@ -1,4 +1,9 @@
 import type { CanvasState } from "@/lib/canvas-storage"
+import { MAX_NODE_DIMENSION, MIN_NODE_DIMENSION } from "@/types/canvas"
+
+const MAX_CANVAS_NODES = 500
+const MAX_CANVAS_EDGES = 1_000
+const MAX_NODE_LABEL_LENGTH = 1_000
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -15,11 +20,37 @@ function isValidNode(value: unknown): boolean {
     return false
   }
 
-  if (!isPlainObject(position) || typeof position.x !== "number" || typeof position.y !== "number") {
+  if (
+    !isPlainObject(position) ||
+    typeof position.x !== "number" ||
+    !Number.isFinite(position.x) ||
+    typeof position.y !== "number" ||
+    !Number.isFinite(position.y)
+  ) {
     return false
   }
 
-  return isPlainObject(data)
+  if (!isPlainObject(data)) {
+    return false
+  }
+
+  const { label, color, textColor, shape } = data
+
+  return (
+    typeof label === "string" &&
+    label.length <= MAX_NODE_LABEL_LENGTH &&
+    typeof color === "string" &&
+    typeof textColor === "string" &&
+    typeof shape === "string" &&
+    typeof value.width === "number" &&
+    Number.isFinite(value.width) &&
+    value.width >= MIN_NODE_DIMENSION &&
+    value.width <= MAX_NODE_DIMENSION &&
+    typeof value.height === "number" &&
+    Number.isFinite(value.height) &&
+    value.height >= MIN_NODE_DIMENSION &&
+    value.height <= MAX_NODE_DIMENSION
+  )
 }
 
 function isValidEdge(value: unknown): boolean {
@@ -44,11 +75,11 @@ export function parseCanvasState(value: unknown): CanvasState | null {
 
   const { nodes, edges } = value
 
-  if (!Array.isArray(nodes) || !nodes.every(isValidNode)) {
+  if (!Array.isArray(nodes) || nodes.length > MAX_CANVAS_NODES || !nodes.every(isValidNode)) {
     return null
   }
 
-  if (!Array.isArray(edges) || !edges.every(isValidEdge)) {
+  if (!Array.isArray(edges) || edges.length > MAX_CANVAS_EDGES || !edges.every(isValidEdge)) {
     return null
   }
 

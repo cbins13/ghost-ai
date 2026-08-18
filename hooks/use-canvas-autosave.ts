@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import type { CanvasState } from "@/lib/canvas-storage"
 import type { CanvasEdge, CanvasNode } from "@/types/canvas"
 
-export type CanvasSaveStatus = "idle" | "saving" | "saved" | "error"
+export type CanvasSaveStatus = "idle" | "saving" | "saved" | "error" | "load-error"
 
 const AUTOSAVE_DEBOUNCE_MS = 1500
 
@@ -19,6 +19,7 @@ interface UseCanvasAutosaveOptions {
   nodes: CanvasNode[]
   edges: CanvasEdge[]
   initialRevision: number | null
+  loadError: boolean
   onReconcile: (canvas: CanvasState) => void
 }
 
@@ -29,6 +30,7 @@ export function useCanvasAutosave({
   nodes,
   edges,
   initialRevision,
+  loadError,
   onReconcile,
 }: UseCanvasAutosaveOptions): { status: CanvasSaveStatus; save: () => Promise<void> } {
   const [status, setStatus] = useState<CanvasSaveStatus>("idle")
@@ -39,6 +41,7 @@ export function useCanvasAutosave({
   const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isSavingRef = useRef(false)
   const hasPendingSaveRef = useRef(false)
+  const saveRef = useRef<() => Promise<void>>(async () => {})
 
   useEffect(() => {
     nodesRef.current = nodes
@@ -50,7 +53,7 @@ export function useCanvasAutosave({
   }, [initialRevision])
 
   const save = useCallback(async () => {
-    if (revisionRef.current === null) {
+    if (loadError || revisionRef.current === null) {
       return
     }
 
@@ -102,10 +105,14 @@ export function useCanvasAutosave({
     resetTimeoutRef.current = setTimeout(() => {
       setStatus("idle")
     }, SAVE_STATUS_RESET_MS)
-  }, [onReconcile, projectId])
+  }, [loadError, onReconcile, projectId])
 
   useEffect(() => {
-    if (revisionRef.current === null) {
+    saveRef.current = save
+  }, [save])
+
+  useEffect(() => {
+    if (loadError || revisionRef.current === null) {
       return
     }
 
@@ -120,17 +127,24 @@ export function useCanvasAutosave({
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
       }
     }
-  }, [nodes, edges, initialRevision, save])
+  }, [nodes, edges, initialRevision, loadError, save])
 
   useEffect(() => {
     return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
+        void saveRef.current()
+      }
+
       if (resetTimeoutRef.current) {
         clearTimeout(resetTimeoutRef.current)
       }
     }
   }, [])
 
-  return { status, save }
+  return { status: loadError ? "load-error" : status, save }
 }

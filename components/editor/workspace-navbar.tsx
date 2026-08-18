@@ -34,6 +34,7 @@ const SAVE_STATUS_LABEL: Record<CanvasSaveStatus, string> = {
   saving: "Saving…",
   saved: "Saved",
   error: "Error",
+  "load-error": "Canvas unavailable",
 }
 
 function SaveStatusIcon({ status }: Readonly<{ status: CanvasSaveStatus }>) {
@@ -45,7 +46,7 @@ function SaveStatusIcon({ status }: Readonly<{ status: CanvasSaveStatus }>) {
     return <Check className="h-4 w-4 text-brand" />
   }
 
-  if (status === "error") {
+  if (status === "error" || status === "load-error") {
     return <AlertCircle className="h-4 w-4 text-destructive" />
   }
 
@@ -84,7 +85,12 @@ export function WorkspaceNavbar({
         <span className="truncate text-sm font-medium text-copy-primary">{projectName}</span>
       </div>
       <div className="flex flex-1 items-center justify-end gap-1">
-        <Button disabled={saveStatus === "saving"} onClick={onSaveClick} size="sm" variant="outline">
+        <Button
+          disabled={saveStatus === "saving" || saveStatus === "load-error"}
+          onClick={onSaveClick}
+          size="sm"
+          variant="outline"
+        >
           <SaveStatusIcon status={saveStatus} />
           {SAVE_STATUS_LABEL[saveStatus]}
         </Button>

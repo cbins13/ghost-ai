@@ -22,10 +22,20 @@ declare global {
     };
 
     // Custom events, for useBroadcastEvent, useEventListener
-    RoomEvent: Record<string, never>;
-    // Example has two events, using a union
-    // | { type: "PLAY" }
-    // | { type: "REACTION"; emoji: "🔥" };
+    RoomEvent:
+      | {
+          type: "design-agent-status";
+          runId: string;
+          status: "started" | "processing" | "complete" | "error";
+          message: string;
+        }
+      | {
+          type: "ai-chat-message";
+          sender: string;
+          role: "user" | "assistant";
+          content: string;
+          createdAt: string;
+        };
 
     // Custom metadata set on threads, for useThreads, useCreateThread, etc.
     ThreadMetadata: Record<string, never>;

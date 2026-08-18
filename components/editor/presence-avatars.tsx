@@ -20,7 +20,7 @@ function CollaboratorAvatar({ avatar, color, name }: Readonly<CollaboratorAvatar
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        alt=""
+        alt={name}
         className="h-8 w-8 shrink-0 rounded-full border-2 border-surface object-cover"
         src={avatar}
         title={name}
@@ -31,6 +31,8 @@ function CollaboratorAvatar({ avatar, color, name }: Readonly<CollaboratorAvatar
   return (
     <div
       className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-surface text-xs font-medium text-copy-primary"
+      aria-label={name}
+      role="img"
       style={{ backgroundColor: color }}
       title={name}
     >

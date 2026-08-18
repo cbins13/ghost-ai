@@ -1,4 +1,4 @@
-import { put, get } from "@vercel/blob"
+import { get, put } from "@vercel/blob"
 
 import type { CanvasNode, CanvasEdge } from "@/types/canvas"
 
@@ -10,7 +10,7 @@ export interface CanvasState {
 export const EMPTY_CANVAS_STATE: CanvasState = { nodes: [], edges: [] }
 
 function canvasBlobPathname(projectId: string, revision: number): string {
-  return `canvas/${projectId}/${revision}.json`
+  return `canvas/${projectId}/${revision}-${crypto.randomUUID()}.json`
 }
 
 export async function writeCanvasBlob(
@@ -22,17 +22,16 @@ export async function writeCanvasBlob(
     access: "private",
     contentType: "application/json",
     addRandomSuffix: false,
-    allowOverwrite: true,
   })
 
   return blob.pathname
 }
 
 export async function readCanvasBlob(pathname: string): Promise<CanvasState> {
-  const result = await get(pathname, { access: "private" })
+  const result = await get(pathname, { access: "private", useCache: false })
 
   if (!result || result.statusCode !== 200) {
-    return EMPTY_CANVAS_STATE
+    throw new Error(`Canvas blob ${pathname} could not be read.`)
   }
 
   const response = new Response(result.stream)

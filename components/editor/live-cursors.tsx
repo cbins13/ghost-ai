@@ -7,10 +7,11 @@ import type { ReactFlowInstance } from "@xyflow/react"
 import type { CanvasNode } from "@/types/canvas"
 
 interface LiveCursorsProps {
+  canvasOffset: { left: number; top: number }
   reactFlowInstance: ReactFlowInstance<CanvasNode>
 }
 
-export function LiveCursors({ reactFlowInstance }: Readonly<LiveCursorsProps>) {
+export function LiveCursors({ canvasOffset, reactFlowInstance }: Readonly<LiveCursorsProps>) {
   const others = useOthers()
 
   return (
@@ -21,12 +22,14 @@ export function LiveCursors({ reactFlowInstance }: Readonly<LiveCursorsProps>) {
         }
 
         const { x, y } = reactFlowInstance.flowToScreenPosition(other.presence.cursor)
+        const relativeX = x - canvasOffset.left
+        const relativeY = y - canvasOffset.top
 
         return (
           <div
             className="absolute top-0 left-0"
             key={other.connectionId}
-            style={{ transform: `translate(${x}px, ${y}px)` }}
+            style={{ transform: `translate(${relativeX}px, ${relativeY}px)` }}
           >
             <MousePointer2 className="h-5 w-5 -translate-x-0.5 -translate-y-0.5" fill={other.info.color} stroke={other.info.color} />
             <span

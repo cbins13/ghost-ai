@@ -54,6 +54,42 @@
       "sourceType": "github",
       "skillPath": "prisma-upgrade-v7/SKILL.md",
       "computedHash": "dcc6c71adca6b22f37c5bda5ac7fd63c3bb59495596a22e06a29c7c85371558f"
+    },
+    "trigger-authoring-chat-agent": {
+      "source": "triggerdotdev/skills",
+      "sourceType": "github",
+      "skillPath": "trigger-authoring-chat-agent/SKILL.md",
+      "computedHash": "40383044e035fbbf6926e6f69aa98ba3a6c046bfff14f4fd6e6d82155adb23f2"
+    },
+    "trigger-chat-agent-advanced": {
+      "source": "triggerdotdev/skills",
+      "sourceType": "github",
+      "skillPath": "trigger-chat-agent-advanced/SKILL.md",
+      "computedHash": "a57a17c365c1764b2b71d8efdc9345ed5f5fc5a7eae875e5600da520668c37bd"
+    },
+    "trigger-cost-savings": {
+      "source": "triggerdotdev/skills",
+      "sourceType": "github",
+      "skillPath": "trigger-cost-savings/SKILL.md",
+      "computedHash": "534a9ae5335e926aa6ed94d98348e551a7f0857c344456b91a317a0383d2bda1"
+    },
+    "trigger-realtime": {
+      "source": "triggerdotdev/skills",
+      "sourceType": "github",
+      "skillPath": "trigger-realtime/SKILL.md",
+      "computedHash": "471bdef9043b6208045c4a73eb99b78d50ab8019c06c781f5cc5835056d087aa"
+    },
+    "trigger-setup": {
+      "source": "triggerdotdev/skills",
+      "sourceType": "github",
+      "skillPath": "trigger-setup/SKILL.md",
+      "computedHash": "6a6a11c07361d793428b435645d8356b8be55e6007abd9d6c46b25cd040792b9"
+    },
+    "trigger-tasks": {
+      "source": "triggerdotdev/skills",
+      "sourceType": "github",
+      "skillPath": "trigger-tasks/SKILL.md",
+      "computedHash": "42238a27d6e9a428cff0cf076a99f3d82edc99a88eace8175b11273db9a1da2c"
     }
   }
 }

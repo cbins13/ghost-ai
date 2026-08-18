@@ -1,4 +1,6 @@
 import { forbidden, internalError, notFound, unauthorized } from "@/lib/api-response"
+import { del } from "@vercel/blob"
+
 import { EMPTY_CANVAS_STATE, readCanvasBlob, writeCanvasBlob } from "@/lib/canvas-storage"
 import { parseCanvasState } from "@/lib/canvas-validation"
 import { getCurrentIdentity, getProjectWithAccess } from "@/lib/project-access"
@@ -19,7 +21,8 @@ export async function GET(_request: Request, { params }: RouteParams) {
   const project = await getProjectWithAccess(projectId, identity)
 
   if (!project) {
-    return forbidden()
+    const exists = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } })
+    return exists ? forbidden() : notFound()
   }
 
   if (!project.canvasJsonPath) {
@@ -46,7 +49,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
   const project = await getProjectWithAccess(projectId, identity)
 
   if (!project) {
-    return forbidden()
+    const exists = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } })
+    return exists ? forbidden() : notFound()
   }
 
   let body: unknown
@@ -79,6 +83,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
     })
 
     if (count === 0) {
+      await del(blobPathname)
+
       const current = await prisma.project.findUnique({ where: { id: projectId } })
 
       if (!current) {

@@ -1,4 +1,4 @@
-Add autosave and loading for the collaborative canvas so project state is persisted before adding AI generation Canvas JSON should be stored in Vercel Blob, and the saved blob URL should be stored on the Prisma project record.
+Add autosave and loading for the collaborative canvas so project state is persisted before adding AI generation Canvas JSON should be stored in Vercel Blob, and the trusted private Blob pathname/key should be stored on the Prisma project record.
 
 ## What to Install
 
@@ -7,7 +7,7 @@ Add autosave and loading for the collaborative canvas so project state is persis
 ## Implementation
 
 1. Check the existing project schema.
-   - review `prisma/model/project.prisma`
+   - review `prisma/models/project.prisma`
    - add or reuse fields for a trusted private canvas Blob pathname/key and canvas revision
    - keep Prisma responsible for metadata only
 
@@ -26,7 +26,7 @@ Add autosave and loading for the collaborative canvas so project state is persis
    - require Clerk authentication and verify the user is the project owner or a collaborator before reading
    - read the project’s trusted private Blob pathname/key and revision from Prisma
    - retrieve the snapshot server-side with `get(pathname, { access: "private" })`
-   - return only `{ "canvas": CanvasState, "revision": number }`, never the Blob URL or key
+   - return only `{ "canvas": CanvasState, "revision": number }`, never the Blob URL or private key
 
    Return `401` when unauthenticated and `403` when an authenticated user lacks project access.
 
@@ -56,7 +56,7 @@ Add autosave and loading for the collaborative canvas so project state is persis
 ## Check When Done
 
 - `@vercel/blob` is installed.
-- Project schema supports storing the canvas blob URL.
+- Project schema supports storing the trusted private canvas Blob pathname/key.
 - Save/load routes use Prisma for metadata and Vercel Blob for canvas JSON.
 - Autosave hook debounces canvas saves.
 - Editor shows save status.

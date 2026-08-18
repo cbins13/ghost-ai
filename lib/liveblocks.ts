@@ -47,3 +47,15 @@ export function getCursorColorForUser(userId: string): string {
 
   return CURSOR_COLORS[index];
 }
+
+const AI_DESIGN_AGENT_COLOR = "#0AC7B4";
+
+export function getDesignAgentUserId(runId: string): string {
+  return `ai-design-agent:${runId}`;
+}
+
+export const DESIGN_AGENT_USER_INFO = {
+  name: "Ghost AI",
+  avatar: "",
+  color: AI_DESIGN_AGENT_COLOR,
+};

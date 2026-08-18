@@ -15,8 +15,6 @@ import {
 } from "react"
 import {
   ClientSideSuspense,
-  LiveblocksProvider,
-  RoomProvider,
   useCanRedo,
   useCanUndo,
   useRedo,
@@ -251,11 +249,14 @@ function CanvasFlow({
   const [pendingSnapshot, setPendingSnapshot] = useState<string | null>(null)
   const [hasConflict, setHasConflict] = useState(false)
   const [initialRevision, setInitialRevision] = useState<number | null>(null)
+  const [canvasLoadError, setCanvasLoadError] = useState(false)
+  const [canvasOffset, setCanvasOffset] = useState({ left: 0, top: 0 })
 
   const nodesRef = useRef(nodes)
   const edgesRef = useRef(edges)
   const liveNodesRef = useRef(liveNodes)
   const liveEdgesRef = useRef(liveEdges)
+  const canvasWrapperRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     nodesRef.current = nodes
@@ -266,6 +267,29 @@ function CanvasFlow({
     liveNodesRef.current = liveNodes
     liveEdgesRef.current = liveEdges
   }, [liveNodes, liveEdges])
+
+  useEffect(() => {
+    const canvasWrapper = canvasWrapperRef.current
+
+    if (!canvasWrapper) {
+      return
+    }
+
+    const updateCanvasOffset = () => {
+      const { left, top } = canvasWrapper.getBoundingClientRect()
+      setCanvasOffset({ left, top })
+    }
+
+    const resizeObserver = new ResizeObserver(updateCanvasOffset)
+    resizeObserver.observe(canvasWrapper)
+    window.addEventListener("scroll", updateCanvasOffset, true)
+    updateCanvasOffset()
+
+    return () => {
+      resizeObserver.disconnect()
+      window.removeEventListener("scroll", updateCanvasOffset, true)
+    }
+  }, [])
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -322,7 +346,12 @@ function CanvasFlow({
       try {
         const response = await fetch(`/api/projects/${roomId}/canvas`)
 
-        if (!response.ok || cancelled) {
+        if (cancelled) {
+          return
+        }
+
+        if (!response.ok) {
+          setCanvasLoadError(true)
           return
         }
 
@@ -342,7 +371,9 @@ function CanvasFlow({
 
         setInitialRevision(body.revision)
       } catch {
-        // Loading the saved snapshot failed; autosave stays disabled until the next mount.
+        if (!cancelled) {
+          setCanvasLoadError(true)
+        }
       }
     }
 
@@ -358,6 +389,7 @@ function CanvasFlow({
     nodes,
     edges,
     initialRevision,
+    loadError: canvasLoadError,
     onReconcile: replaceCanvasState,
   })
 
@@ -611,6 +643,7 @@ function CanvasFlow({
         onDrop={handleDrop}
         onMouseLeave={handleCanvasMouseLeave}
         onMouseMove={handleCanvasMouseMove}
+        ref={canvasWrapperRef}
       >
         <ReactFlow
           connectionMode={ConnectionMode.Loose}
@@ -636,7 +669,7 @@ function CanvasFlow({
           reactFlowInstance={reactFlowInstance}
         />
         <PresenceAvatars />
-        <LiveCursors reactFlowInstance={reactFlowInstance} />
+        <LiveCursors canvasOffset={canvasOffset} reactFlowInstance={reactFlowInstance} />
       </div>
       <StarterTemplatesModal
         isOpen={isTemplatesModalOpen}
@@ -663,21 +696,17 @@ export function Canvas({
 }: Readonly<CanvasProps>) {
   return (
     <CanvasErrorBoundary>
-      <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
-        <RoomProvider id={roomId} initialPresence={{ cursor: null, thinking: false }}>
-          <ClientSideSuspense fallback={<CanvasLoading />}>
-            <ReactFlowProvider>
-              <CanvasFlow
-                isTemplatesModalOpen={isTemplatesModalOpen}
-                onSaveRequestReady={onSaveRequestReady}
-                onSaveStatusChange={onSaveStatusChange}
-                onTemplatesModalOpenChange={onTemplatesModalOpenChange}
-                roomId={roomId}
-              />
-            </ReactFlowProvider>
-          </ClientSideSuspense>
-        </RoomProvider>
-      </LiveblocksProvider>
+      <ClientSideSuspense fallback={<CanvasLoading />}>
+        <ReactFlowProvider>
+          <CanvasFlow
+            isTemplatesModalOpen={isTemplatesModalOpen}
+            onSaveRequestReady={onSaveRequestReady}
+            onSaveStatusChange={onSaveStatusChange}
+            onTemplatesModalOpenChange={onTemplatesModalOpenChange}
+            roomId={roomId}
+          />
+        </ReactFlowProvider>
+      </ClientSideSuspense>
     </CanvasErrorBoundary>
   )
 }

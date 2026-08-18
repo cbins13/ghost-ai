@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
+import { LiveblocksProvider, RoomProvider } from "@liveblocks/react"
 
 import { AiSidebar } from "@/components/editor/ai-sidebar"
 import { Canvas } from "@/components/editor/canvas"
@@ -74,18 +75,26 @@ export function WorkspaceShell({
           sharedProjects={sharedProjects}
           toggleButtonRef={sidebarToggleRef}
         />
-        <section aria-label="Canvas" className="flex flex-1 bg-base">
-          <Canvas
-            isTemplatesModalOpen={isTemplatesModalOpen}
-            onSaveRequestReady={(save) => {
-              saveRequestRef.current = save
-            }}
-            onSaveStatusChange={setSaveStatus}
-            onTemplatesModalOpenChange={setIsTemplatesModalOpen}
-            roomId={activeProjectId}
-          />
-        </section>
-        <AiSidebar isOpen={isAiSidebarOpen} onClose={() => setIsAiSidebarOpen(false)} />
+        <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
+          <RoomProvider id={activeProjectId} initialPresence={{ cursor: null, thinking: false }}>
+            <section aria-label="Canvas" className="flex flex-1 bg-base">
+              <Canvas
+                isTemplatesModalOpen={isTemplatesModalOpen}
+                onSaveRequestReady={(save) => {
+                  saveRequestRef.current = save
+                }}
+                onSaveStatusChange={setSaveStatus}
+                onTemplatesModalOpenChange={setIsTemplatesModalOpen}
+                roomId={activeProjectId}
+              />
+            </section>
+            <AiSidebar
+              isOpen={isAiSidebarOpen}
+              onClose={() => setIsAiSidebarOpen(false)}
+              roomId={activeProjectId}
+            />
+          </RoomProvider>
+        </LiveblocksProvider>
       </div>
       <ProjectDialogs
         activeDialog={projectActions.activeDialog}
