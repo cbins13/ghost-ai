@@ -1,29 +1,68 @@
 "use client"
 
-import { UserButton } from "@clerk/nextjs"
-import { LayoutTemplate, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Share2 } from "lucide-react"
+import {
+  AlertCircle,
+  Check,
+  LayoutTemplate,
+  Loader2,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
+  Save,
+  Share2,
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import type { CanvasSaveStatus } from "@/hooks/use-canvas-autosave"
 
 interface WorkspaceNavbarProps {
   isAiSidebarOpen: boolean
   isSidebarOpen: boolean
   onAiSidebarToggle: () => void
+  onSaveClick: () => void
   onShareClick: () => void
   onSidebarToggle: () => void
   onTemplatesClick: () => void
   projectName: string
+  saveStatus: CanvasSaveStatus
   sidebarToggleRef?: React.RefObject<HTMLButtonElement | null>
+}
+
+const SAVE_STATUS_LABEL: Record<CanvasSaveStatus, string> = {
+  idle: "Save",
+  saving: "Saving…",
+  saved: "Saved",
+  error: "Error",
+  "load-error": "Canvas unavailable",
+}
+
+function SaveStatusIcon({ status }: Readonly<{ status: CanvasSaveStatus }>) {
+  if (status === "saving") {
+    return <Loader2 className="h-4 w-4 animate-spin" />
+  }
+
+  if (status === "saved") {
+    return <Check className="h-4 w-4 text-brand" />
+  }
+
+  if (status === "error" || status === "load-error") {
+    return <AlertCircle className="h-4 w-4 text-destructive" />
+  }
+
+  return <Save className="h-4 w-4" />
 }
 
 export function WorkspaceNavbar({
   isAiSidebarOpen,
   isSidebarOpen,
   onAiSidebarToggle,
+  onSaveClick,
   onShareClick,
   onSidebarToggle,
   onTemplatesClick,
   projectName,
+  saveStatus,
   sidebarToggleRef,
 }: Readonly<WorkspaceNavbarProps>) {
   const SidebarIcon = isSidebarOpen ? PanelLeftClose : PanelLeftOpen
@@ -46,6 +85,15 @@ export function WorkspaceNavbar({
         <span className="truncate text-sm font-medium text-copy-primary">{projectName}</span>
       </div>
       <div className="flex flex-1 items-center justify-end gap-1">
+        <Button
+          disabled={saveStatus === "saving" || saveStatus === "load-error"}
+          onClick={onSaveClick}
+          size="sm"
+          variant="outline"
+        >
+          <SaveStatusIcon status={saveStatus} />
+          {SAVE_STATUS_LABEL[saveStatus]}
+        </Button>
         <Button onClick={onTemplatesClick} size="sm" variant="outline">
           <LayoutTemplate className="h-4 w-4" />
           Templates
@@ -63,7 +111,6 @@ export function WorkspaceNavbar({
         >
           <AiSidebarIcon className="h-5 w-5" />
         </Button>
-        <UserButton />
       </div>
     </header>
   )

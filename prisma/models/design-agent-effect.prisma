@@ -1,0 +1,13 @@
+model DesignAgentEffect {
+  id         String    @id @default(cuid())
+  runId      String
+  actionId   String
+  effectType String
+  status     String    @default("pending")
+  payload    Json?
+  createdAt  DateTime  @default(now())
+  appliedAt  DateTime?
+
+  @@unique([runId, actionId, effectType])
+  @@index([runId])
+}

@@ -1,15 +1,26 @@
 "use client"
 
-import { Component, createContext, useCallback, useContext, useMemo, useState, type DragEvent, type ReactNode } from "react"
+import {
+  Component,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type MouseEvent,
+  type ReactNode,
+} from "react"
 import {
   ClientSideSuspense,
-  LiveblocksProvider,
-  RoomProvider,
   useCanRedo,
   useCanUndo,
   useRedo,
   useRoom,
   useUndo,
+  useUpdateMyPresence,
 } from "@liveblocks/react"
 import { useLiveblocksFlow } from "@liveblocks/react-flow"
 import {
@@ -20,6 +31,8 @@ import {
   MiniMap,
   ReactFlow,
   ReactFlowProvider,
+  useEdges,
+  useNodes,
   useReactFlow,
   type DefaultEdgeOptions,
   type EdgeTypes,
@@ -30,11 +43,15 @@ import "@xyflow/react/dist/style.css"
 import { CanvasControlBar } from "@/components/editor/canvas-control-bar"
 import { CanvasEdgeRenderer, EDGE_COLOR } from "@/components/editor/canvas-edge"
 import { CanvasNodeRenderer } from "@/components/editor/canvas-node"
+import { LiveCursors } from "@/components/editor/live-cursors"
+import { PresenceAvatars } from "@/components/editor/presence-avatars"
 import { SHAPE_DRAG_MIME_TYPE, ShapePanel } from "@/components/editor/shape-panel"
 import { resolveTemplateColor, type CanvasTemplate } from "@/components/editor/starter-templates"
 import { StarterTemplatesImportDialog } from "@/components/editor/starter-templates-import-dialog"
 import { StarterTemplatesModal } from "@/components/editor/starter-templates-modal"
+import { useCanvasAutosave, type CanvasSaveStatus } from "@/hooks/use-canvas-autosave"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
+import type { CanvasState } from "@/lib/canvas-storage"
 import {
   DEFAULT_NODE_COLOR,
   MAX_NODE_DIMENSION,
@@ -51,6 +68,8 @@ interface CanvasProps {
   roomId: string
   isTemplatesModalOpen: boolean
   onTemplatesModalOpenChange: (open: boolean) => void
+  onSaveStatusChange: (status: CanvasSaveStatus) => void
+  onSaveRequestReady: (save: () => void) => void
 }
 
 const nodeTypes: NodeTypes = {
@@ -193,11 +212,20 @@ function snapshotSignature(nodes: CanvasNode[], edges: CanvasEdge[]): string {
 }
 
 interface CanvasFlowProps {
+  roomId: string
   isTemplatesModalOpen: boolean
   onTemplatesModalOpenChange: (open: boolean) => void
+  onSaveStatusChange: (status: CanvasSaveStatus) => void
+  onSaveRequestReady: (save: () => void) => void
 }
 
-function CanvasFlow({ isTemplatesModalOpen, onTemplatesModalOpenChange }: Readonly<CanvasFlowProps>) {
+function CanvasFlow({
+  roomId,
+  isTemplatesModalOpen,
+  onTemplatesModalOpenChange,
+  onSaveStatusChange,
+  onSaveRequestReady,
+}: Readonly<CanvasFlowProps>) {
   const { nodes, edges, onNodesChange, onEdgesChange, onConnect, onDelete } = useLiveblocksFlow<
     CanvasNode,
     CanvasEdge
@@ -208,15 +236,172 @@ function CanvasFlow({ isTemplatesModalOpen, onTemplatesModalOpenChange }: Readon
   })
   const reactFlowInstance = useReactFlow<CanvasNode>()
   const { screenToFlowPosition, getViewport, fitView } = reactFlowInstance
+  const liveNodes = useNodes<CanvasNode>()
+  const liveEdges = useEdges<CanvasEdge>()
   const room = useRoom()
   const undo = useUndo()
   const redo = useRedo()
   const canUndo = useCanUndo()
   const canRedo = useCanRedo()
+  const updateMyPresence = useUpdateMyPresence()
 
   const [pendingTemplate, setPendingTemplate] = useState<CanvasTemplate | null>(null)
   const [pendingSnapshot, setPendingSnapshot] = useState<string | null>(null)
   const [hasConflict, setHasConflict] = useState(false)
+  const [initialRevision, setInitialRevision] = useState<number | null>(null)
+  const [canvasLoadError, setCanvasLoadError] = useState(false)
+  const [canvasOffset, setCanvasOffset] = useState({ left: 0, top: 0 })
+
+  const nodesRef = useRef(nodes)
+  const edgesRef = useRef(edges)
+  const liveNodesRef = useRef(liveNodes)
+  const liveEdgesRef = useRef(liveEdges)
+  const canvasWrapperRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    nodesRef.current = nodes
+    edgesRef.current = edges
+  }, [nodes, edges])
+
+  useEffect(() => {
+    liveNodesRef.current = liveNodes
+    liveEdgesRef.current = liveEdges
+  }, [liveNodes, liveEdges])
+
+  useEffect(() => {
+    const canvasWrapper = canvasWrapperRef.current
+
+    if (!canvasWrapper) {
+      return
+    }
+
+    const updateCanvasOffset = () => {
+      const { left, top } = canvasWrapper.getBoundingClientRect()
+      setCanvasOffset({ left, top })
+    }
+
+    const resizeObserver = new ResizeObserver(updateCanvasOffset)
+    resizeObserver.observe(canvasWrapper)
+    window.addEventListener("scroll", updateCanvasOffset, true)
+    updateCanvasOffset()
+
+    return () => {
+      resizeObserver.disconnect()
+      window.removeEventListener("scroll", updateCanvasOffset, true)
+    }
+  }, [])
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Delete" && event.key !== "Backspace") {
+        return
+      }
+
+      const target = event.target as HTMLElement | null
+
+      if (
+        target &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)
+      ) {
+        return
+      }
+
+      const selectedNodes = liveNodesRef.current.filter((node) => node.selected)
+      const selectedEdges = liveEdgesRef.current.filter((edge) => edge.selected)
+
+      if (selectedNodes.length === 0 && selectedEdges.length === 0) {
+        return
+      }
+
+      onDelete({ nodes: selectedNodes, edges: selectedEdges })
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [onDelete])
+
+  const replaceCanvasState = useCallback(
+    (canvas: CanvasState) => {
+      room.batch(() => {
+        onNodesChange([
+          ...nodesRef.current.map((existing) => ({ type: "remove" as const, id: existing.id })),
+          ...canvas.nodes.map((item) => ({ type: "add" as const, item })),
+        ])
+        onEdgesChange([
+          ...edgesRef.current.map((existing) => ({ type: "remove" as const, id: existing.id })),
+          ...canvas.edges.map((item) => ({ type: "add" as const, item })),
+        ])
+      })
+    },
+    [onEdgesChange, onNodesChange, room],
+  )
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadSavedCanvas() {
+      try {
+        const response = await fetch(`/api/projects/${roomId}/canvas`)
+
+        if (cancelled) {
+          return
+        }
+
+        if (!response.ok) {
+          setCanvasLoadError(true)
+          return
+        }
+
+        const body = (await response.json()) as { canvas: CanvasState; revision: number }
+
+        if (cancelled) {
+          return
+        }
+
+        const isRoomStillEmpty = nodesRef.current.length === 0 && edgesRef.current.length === 0
+        const hasSavedContent = body.canvas.nodes.length > 0 || body.canvas.edges.length > 0
+
+        if (isRoomStillEmpty && hasSavedContent) {
+          replaceCanvasState(body.canvas)
+          window.requestAnimationFrame(() => fitView({ duration: 0 }))
+        }
+
+        setInitialRevision(body.revision)
+      } catch {
+        if (!cancelled) {
+          setCanvasLoadError(true)
+        }
+      }
+    }
+
+    void loadSavedCanvas()
+
+    return () => {
+      cancelled = true
+    }
+  }, [fitView, replaceCanvasState, roomId])
+
+  const { status: saveStatus, save: triggerSave } = useCanvasAutosave({
+    projectId: roomId,
+    nodes,
+    edges,
+    initialRevision,
+    loadError: canvasLoadError,
+    onReconcile: replaceCanvasState,
+  })
+
+  useEffect(() => {
+    onSaveStatusChange(saveStatus)
+  }, [onSaveStatusChange, saveStatus])
+
+  useEffect(() => {
+    onSaveRequestReady(() => {
+      void triggerSave()
+    })
+  }, [onSaveRequestReady, triggerSave])
 
   const applyTemplate = useCallback(
     (template: CanvasTemplate) => {
@@ -315,6 +500,18 @@ function CanvasFlow({ isTemplatesModalOpen, onTemplatesModalOpenChange }: Readon
     event.preventDefault()
     event.dataTransfer.dropEffect = "copy"
   }, [])
+
+  const handleCanvasMouseMove = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      const cursor = screenToFlowPosition({ x: event.clientX, y: event.clientY })
+      updateMyPresence({ cursor })
+    },
+    [screenToFlowPosition, updateMyPresence],
+  )
+
+  const handleCanvasMouseLeave = useCallback(() => {
+    updateMyPresence({ cursor: null })
+  }, [updateMyPresence])
 
   const createNodeAtCenter = useCallback(
     (shape: CanvasNodeShape) => {
@@ -440,17 +637,23 @@ function CanvasFlow({ isTemplatesModalOpen, onTemplatesModalOpenChange }: Readon
 
   return (
     <CanvasActionsContext.Provider value={canvasActions}>
-      <div className="relative flex flex-1" onDragOver={handleDragOver} onDrop={handleDrop}>
+      <div
+        className="relative flex flex-1"
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        onMouseLeave={handleCanvasMouseLeave}
+        onMouseMove={handleCanvasMouseMove}
+        ref={canvasWrapperRef}
+      >
         <ReactFlow
           connectionMode={ConnectionMode.Loose}
           defaultEdgeOptions={defaultEdgeOptions}
+          deleteKeyCode={null}
           edges={edges}
           edgeTypes={edgeTypes}
-          fitView
           nodes={nodes}
           nodeTypes={nodeTypes}
           onConnect={onConnect}
-          onDelete={onDelete}
           onEdgesChange={onEdgesChange}
           onNodesChange={onNodesChange}
         >
@@ -465,6 +668,8 @@ function CanvasFlow({ isTemplatesModalOpen, onTemplatesModalOpenChange }: Readon
           onUndo={undo}
           reactFlowInstance={reactFlowInstance}
         />
+        <PresenceAvatars />
+        <LiveCursors canvasOffset={canvasOffset} reactFlowInstance={reactFlowInstance} />
       </div>
       <StarterTemplatesModal
         isOpen={isTemplatesModalOpen}
@@ -482,21 +687,26 @@ function CanvasFlow({ isTemplatesModalOpen, onTemplatesModalOpenChange }: Readon
   )
 }
 
-export function Canvas({ roomId, isTemplatesModalOpen, onTemplatesModalOpenChange }: Readonly<CanvasProps>) {
+export function Canvas({
+  roomId,
+  isTemplatesModalOpen,
+  onTemplatesModalOpenChange,
+  onSaveStatusChange,
+  onSaveRequestReady,
+}: Readonly<CanvasProps>) {
   return (
     <CanvasErrorBoundary>
-      <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
-        <RoomProvider id={roomId} initialPresence={{ cursor: null, isThinking: false }}>
-          <ClientSideSuspense fallback={<CanvasLoading />}>
-            <ReactFlowProvider>
-              <CanvasFlow
-                isTemplatesModalOpen={isTemplatesModalOpen}
-                onTemplatesModalOpenChange={onTemplatesModalOpenChange}
-              />
-            </ReactFlowProvider>
-          </ClientSideSuspense>
-        </RoomProvider>
-      </LiveblocksProvider>
+      <ClientSideSuspense fallback={<CanvasLoading />}>
+        <ReactFlowProvider>
+          <CanvasFlow
+            isTemplatesModalOpen={isTemplatesModalOpen}
+            onSaveRequestReady={onSaveRequestReady}
+            onSaveStatusChange={onSaveStatusChange}
+            onTemplatesModalOpenChange={onTemplatesModalOpenChange}
+            roomId={roomId}
+          />
+        </ReactFlowProvider>
+      </ClientSideSuspense>
     </CanvasErrorBoundary>
   )
 }

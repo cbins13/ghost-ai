@@ -24,6 +24,7 @@
   --color-accent-dim: var(--accent-primary-dim);
   --color-ai: var(--accent-ai);
   --color-ai-text: var(--accent-ai-text);
+  --color-state-success: var(--state-success);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -129,5 +130,6 @@
 
   html {
     @apply font-sans;
+    color-scheme: dark;
   }
 }
